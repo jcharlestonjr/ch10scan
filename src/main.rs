@@ -7,6 +7,7 @@ use std::fmt;
 struct Stats {
     packets: u32,
     bytes: u64,
+    packet_rtc: u64,
 }
 
 #[derive(Debug, PartialEq)]
@@ -190,14 +191,15 @@ fn main() {
         let s = stats.entry((hdr.channel_id, hdr.data_type)).or_default();
         s.packets += 1;
         s.bytes += hdr.packet_len as u64;
-
+        let secs = hdr.rtc as f64 / 10_000_000.0;  // Convert to seconds (assuming rtc is in 100ns units)
+        s.packet_rtc += secs as u64;
 
         offset += hdr.packet_len as usize;
     }
 
     for ((ch,dt), s) in &stats {
-        println!("ch {:3}  type 0x{:02x}  {:<18} F{}  packets {:3}  bytes {}",
-         ch, dt, Family::from_code(*dt), dt & 0x07, s.packets, s.bytes);
+        println!("ch {:3}  type 0x{:02x}  {:<18} F{} rtc {:.6}  packets {:3}  bytes {}",
+         ch, dt, Family::from_code(*dt), dt & 0x07, s.packet_rtc as f64 / 10_000_000.0, s.packets, s.bytes);
     }
     let packet_bytes: u64 = stats.values().map(|s| s.bytes).sum();
     let accounted = packet_bytes + skipped as u64;
