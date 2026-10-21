@@ -1,0 +1,2 @@
+Step 1 done: 83 packets verified. c10 stat overcounts Time packets 2×. Next: step 2, header struct + checksum.
+2a done: PrimaryHeader + parse_header, 83 packets, TMATS fields verified. Next: 2b, header_checksum() with wrapping_add, then the corrupted-byte test (expect computed 0x60b7).
