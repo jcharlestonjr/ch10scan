@@ -2,6 +2,7 @@
 name = "ch10scan"
 version = "0.1.0"
 edition = "2024"
+default-run = "ch10scan"
 
 [dependencies]
 
