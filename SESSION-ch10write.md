@@ -6,12 +6,8 @@
 
 ## Steps
 
-- [ ] **Get the branch (5 min).** Commit anything unpushed on your machine first, then:
-      `git fetch` and `git switch ch10write-setup`
-- [ ] **See the starting line (2 min).** `cargo test --bin ch10write`
-      All 5 tests fail with "not yet implemented". That's expected.
-- [ ] **Read the byte map (5 min).** It's the comment at the top of `src/bin/ch10write.rs`.
-      It's the same layout `parse_header` reads, just written instead of read.
+
+
 - [ ] **YOUR PART 1: `build_header` (20 min).**
       Done when `cargo test --bin ch10write builds_known_header` passes.
       That test rebuilds the real header from discrete.c10 byte for byte.
