@@ -71,35 +71,67 @@ fn header_checksum(h: &[u8]) -> u16 {
 fn build_header(hdr: &Header) -> [u8; 24] {
     // YOUR PART 1: this is parse_header() from main.rs, run backwards.
     // 1. let mut h = [0u8; 24];
+    let mut h = [0u8; 24];
     // 2. bytes 0..2 = SYNC as little-endian
     //    (one field at a time: h[0..2].copy_from_slice(&SYNC.to_le_bytes());)
+    h[0..2].copy_from_slice(&SYNC.to_le_bytes());
     // 3. bytes 2..4 = channel_id, 4..8 = packet_len, 8..12 = data_len
+    h[2..4].copy_from_slice(&hdr.channel_id.to_le_bytes());
+    h[4..8].copy_from_slice(&hdr.packet_len.to_le_bytes());
+    h[8..12].copy_from_slice(&hdr.data_len.to_le_bytes());
     // 4. byte 12 = version, 13 = seq, 14 = flags, 15 = data_type
+    h[12] = hdr.version;
+    h[13] = hdr.seq;
+    h[14] = hdr.flags;
+    h[15] = hdr.data_type;
     // 5. bytes 16..22 = the low 6 bytes of rtc: &hdr.rtc.to_le_bytes()[..6]
+    h[16..22].copy_from_slice(&hdr.rtc.to_le_bytes()[..6]);
     // 6. LAST: bytes 22..24 = header_checksum(&h) as little-endian
     //    (the checksum covers bytes 0..22, so those must be filled first)
+    let checksum = header_checksum(&h);
+    h[22..24].copy_from_slice(&checksum.to_le_bytes());
     // 7. return h
-    //
+    return h;
     // Done when: cargo test --bin ch10write builds_known_header
-    todo!("build_header")
+    //todo!("build_header")
 }
 
 /// Wrap TMATS text in a complete Computer Generated Format 1 packet.
 fn build_tmats_packet(text: &str, seq: u8, rtc: u64) -> Vec<u8> {
     // YOUR PART 2:
     // 1. csdw: u32 = CH10VER  (bit 8 stays 0, which means ASCII TMATS)
+    let csdw = CH10VER;
     // 2. data_len = 4 (the CSDW) + text.len()
+    let data_len = 4 + text.len() as u32;
     // 3. packet_len = 24 + data_len, rounded UP to a multiple of 4
     //    (round-up trick: (n + 3) / 4 * 4)
+    let packet_len = 24 + data_len;
+    let packet_len = (packet_len + 3) / 4 * 4;
     // 4. make a Header: channel 0, flags 0 (no secondary header, no data
     //    checksum), version DATA_TYPE_VERSION, data_type TYPE_TMATS
+    let hdr = Header {
+        channel_id: 0,
+        packet_len,
+        data_len,
+        version: DATA_TYPE_VERSION,
+        seq,
+        flags: 0,
+        data_type: TYPE_TMATS,
+        rtc,
+    };
     // 5. let mut packet = Vec::new(); then extend_from_slice with, in order:
     //    the header bytes, csdw.to_le_bytes(), text.as_bytes()
+    let mut packet = Vec::new();
+    packet.extend_from_slice(&build_header(&hdr));
+    packet.extend_from_slice(&csdw.to_le_bytes());
+    packet.extend_from_slice(text.as_bytes());
     // 6. pad with zeros up to packet_len: packet.resize(packet_len as usize, 0);
+    packet.resize(packet_len as usize, 0);
     // 7. return packet
+    return packet;
     //
     // Done when: cargo test --bin ch10write   (all 5 green)
-    todo!("build_tmats_packet")
+    //todo!("build_tmats_packet")
 }
 
 // ======================= Milestone 3 =======================
