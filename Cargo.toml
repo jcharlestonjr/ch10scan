@@ -5,6 +5,7 @@ edition = "2024"
 default-run = "ch10scan"
 
 [dependencies]
+csv = "1.4.0"
 
 [profile.release]
 overflow-checks = true
