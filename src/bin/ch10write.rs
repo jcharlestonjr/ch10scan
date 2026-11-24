@@ -19,6 +19,9 @@
 
 use std::env;
 use std::fs;
+use std::io::Write;
+use std::net::UdpSocket;
+use std::time::Duration;
 
 const SYNC: u16 = 0xEB25;
 // A matched pair copied from ethernet.c10's TMATS packet (IRIG 106-15):
@@ -32,6 +35,7 @@ const TIME_CHANNEL: u16 = 1; // time gets its own channel, like the sample files
 // Time CSDW: FMT (bits 7-4) = 0x3 internal real-time clock, SRC (bits 3-0) = 0x0 internal.
 // Same FMT/SRC as ethernet.c10. Bit 8 = leap year, bit 9 = 0 means day-of-year format.
 const TIME_CSDW_RTC_INTERNAL: u32 = 0x30;
+const DATAGRAM_BYTES: usize = 20; // u32 index + u64 t_ns + f32 entropy + f32 top_prob
 
 // Minimal TMATS. The G\COM line documents the user-defined F0 record layout.
 const TMATS: &str = "G\\PN:AI-TELEMETRY;\n\
@@ -314,53 +318,141 @@ fn build_time_packet(t_ns: u64, seq: u8, rtc: u64) -> Vec<u8> {
 
 
 
-fn main() {
-    let args: Vec<String> = env::args().collect();
-    if args.len() != 3 {
-        eprintln!("usage: ch10write <confidence.csv> <out.c10>");
-        std::process::exit(1);
-    }
-    let readings = read_readings(&args[1]);
-    let t0 = readings.first().expect("CSV has no readings").t_ns;
-    // YOUR PART 8: anchor the RTC to real clock time.
-    // Real recorders put time packets on whole seconds, so:
-    // 1. anchor_ns = first token's t_ns rounded DOWN to a whole second
-    let anchor_ns = t0 - (t0 % 1_000_000_000);
-    let anchor_rtc = rtc_from_ns(t0, anchor_ns);
-    let time_packet = build_time_packet(anchor_ns, 0, anchor_rtc);
+// ======================= Milestone 5 =======================
+// Session plan: SESSION-milestone5.md
 
-    //    (integer-divide by 1_000_000_000, then multiply back)
-    // 2. use anchor_ns instead of t0 when you call rtc_from_ns below,
-    //    so RTC 0 = the anchor and the first token lands at about 0.998 s
-    // 3. right after the TMATS packet, append build_time_packet(anchor_ns, 0, 0)
-    //    (channel 1's first packet, so its seq is 0)
-    // 4. print the anchor so you can see it:
-    //    let a = utc_parts(anchor_ns);
-    //    eprintln!("time anchor: {} day {} {:02}:{:02}:{:02} UTC", a.year, a.doy, a.hour, a.min, a.sec);
+/// One UDP datagram from the Python sensor -> a Reading.
+/// Wire format (Python: struct.pack("<IQff", ...)), 20 bytes, little-endian:
+///   0..4 u32 index   4..12 u64 t_ns   12..16 f32 entropy   16..20 f32 top_prob
+fn parse_datagram(buf: &[u8]) -> Option<Reading> {
+    // YOUR PART 9: the reverse of what you did for packets: bytes -> numbers.
+    // 1. if buf.len() != DATAGRAM_BYTES, return None
+    // 2. read each field with from_le_bytes, e.g.
+    //      u32::from_le_bytes(buf[0..4].try_into().unwrap())
+    //    (try_into turns a 4-byte slice into a [u8; 4]; same as the
+    //     [b[0], b[1], b[2], b[3]] style in your tests)
+    // 3. return Some(Reading { index, t_ns, entropy, top_prob })
     //
-    // Done when: ch10scan shows a ch 1 Time F1 packet and "OK: all 2580 bytes accounted for"
+    // Done when: cargo test --bin ch10write datagram_
+    todo!("parse_datagram")
+}
 
-    let mut file = build_tmats_packet(TMATS, 0, 0);
-    file.extend_from_slice(&time_packet);
+/// Turns readings into Ch10 bytes one at a time, the way a live recorder does.
+/// CSV mode and UDP mode both use it, so they produce identical files.
+struct Recorder {
+    anchor_ns: Option<u64>, // None until the first reading arrives
+    seq: u8,                // next sequence number on channel 0
+}
+
+impl Recorder {
+    fn new() -> Recorder {
+        Recorder { anchor_ns: None, seq: 1 } // channel 0 used seq 0 for TMATS
+    }
+
+    /// The bytes to write for one reading. The first reading also brings the
+    /// TMATS and time packets; every reading after that is one packet.
+    fn packets_for(&mut self, r: &Reading) -> Vec<u8> {
+        // YOUR PART 10: your milestone 4 main logic, one reading at a time.
+        // 1. let mut out = Vec::new();
+        // 2. if self.anchor_ns.is_none() {   (this is the first reading)
+        //        a = r.t_ns rounded DOWN to a whole second
+        //        self.anchor_ns = Some(a);
+        //        append build_tmats_packet(TMATS, 0, 0) to out
+        //        append build_time_packet(a, 0, 0) to out    <- RTC 0 = the anchor
+        //    }
+        // 3. let anchor = self.anchor_ns.unwrap();
+        // 4. rtc = rtc_from_ns(r.t_ns, anchor)    <- count from the ANCHOR, not the first token
+        // 5. append build_confidence_packet(r, self.seq, rtc); then
+        //    self.seq = self.seq.wrapping_add(1);
+        // 6. return out
+        //
+        // Done when: cargo test --bin ch10write recorder_
+        todo!("packets_for")
+    }
+}
+
+fn print_anchor(anchor_ns: u64) {
     let a = utc_parts(anchor_ns);
     eprintln!("time anchor: {} day {} {:02}:{:02}:{:02} UTC", a.year, a.doy, a.hour, a.min, a.sec);
-    // YOUR PART 5: append one confidence packet per reading.
-    let mut seq: u8 = 1; // Sequence numbers count per channel, and channel 0 already used 0 for TMATS.
-    for r in &readings {
-        let rtc = rtc_from_ns(r.t_ns, t0);
-        file.extend_from_slice(&build_confidence_packet(r, seq, rtc));
-        seq = seq.wrapping_add(1); // rolls 255 -> 0, as the standard expects
-    }  
-    // 1. let mut seq: u8 = 1;
-    //    Sequence numbers count per channel, and channel 0 already used 0 for TMATS.
-    // 2. for r in &readings {
-    //        rtc = rtc_from_ns(r.t_ns, t0)
-    //        append build_confidence_packet(r, seq, rtc) to file
-    //        seq = seq.wrapping_add(1)   (rolls 255 -> 0, as the standard expects)
-    //    }
-    //
-    // Done when: ch10scan shows 58 F0 packets and "OK: all 2516 bytes accounted for"
+}
 
+/// Pre-filled: wait for the next datagram. Returns its length, or None on timeout.
+fn recv_datagram(sock: &UdpSocket, buf: &mut [u8]) -> Option<usize> {
+    match sock.recv_from(buf) {
+        Ok((n, _from)) => Some(n),
+        // Linux reports a timeout as WouldBlock, Windows as TimedOut
+        Err(e) if e.kind() == std::io::ErrorKind::WouldBlock
+            || e.kind() == std::io::ErrorKind::TimedOut => None,
+        Err(e) => panic!("UDP receive failed: {e}"),
+    }
+}
+
+/// Live mode: receive readings over UDP and write each one to disk as it arrives,
+/// like a recorder. Returns how many readings were recorded.
+fn record(sock: &UdpSocket, out: &str) -> usize {
+    let mut file = fs::File::create(out).expect("could not create output file");
+    let mut rec = Recorder::new();
+    let mut buf = [0u8; 64];
+    let mut expected: u32 = 0;
+    let mut count = 0;
+
+    loop {
+        // Pre-filled: wait for the next datagram. None means 5 s of silence.
+        let Some(n) = recv_datagram(sock, &mut buf) else {
+            eprintln!("no data for 5 s, stopping");
+            break;
+        };
+        if n == 0 {
+            break; // an empty datagram means the sender finished the run
+        }
+
+        // YOUR PART 11: handle one datagram.
+        // 1. let Some(r) = parse_datagram(&buf[..n]) else { warn and continue };
+        // 2. if r.index != expected, eprintln!("gap: expected reading {expected}, got {}", r.index)
+        //    (UDP can drop datagrams, and a recorder should say so), then expected = r.index + 1
+        // 3. file.write_all(&rec.packets_for(&r)).expect("write failed");
+        //    Written right away, so the file is valid even if the run gets cut off.
+        // 4. if count == 0 (first reading):
+        //        print_anchor(rec.anchor_ns.unwrap());
+        //        sock.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+        //    Start the silence timer only now, because the model can take a while to load.
+        // 5. eprintln!("rx {:4}  entropy {:5.2}  top {:4.2}", r.index, r.entropy, r.top_prob);
+        //    count += 1;
+        //
+        // Done when: cargo test --bin ch10write udp_
+    }
+    count
+}
+
+fn main() {
+    let args: Vec<String> = env::args().collect();
+
+    // Live mode: ch10write --udp <port> <out.c10>
+    if args.len() == 4 && args[1] == "--udp" {
+        let port: u16 = args[2].parse().expect("bad port number");
+        let sock = UdpSocket::bind(("0.0.0.0", port)).expect("could not open UDP port");
+        eprintln!("listening on UDP port {port}, recording to {}", args[3]);
+        let n = record(&sock, &args[3]);
+        eprintln!("recorded {n} readings to {}", args[3]);
+        return;
+    }
+
+    if args.len() != 3 {
+        eprintln!("usage: ch10write <confidence.csv> <out.c10>");
+        eprintln!("       ch10write --udp <port> <out.c10>");
+        std::process::exit(1);
+    }
+
+    // CSV mode: the same Recorder as live mode, so both make identical files.
+    let readings = read_readings(&args[1]);
+    let mut rec = Recorder::new();
+    let mut file = Vec::new();
+    for r in &readings {
+        file.extend_from_slice(&rec.packets_for(r));
+    }
+    if let Some(a) = rec.anchor_ns {
+        print_anchor(a);
+    }
     fs::write(&args[2], &file).expect("could not write file");
     eprintln!("wrote {} bytes to {}", file.len(), args[2]);
 }
@@ -535,5 +627,84 @@ mod tests {
         // 2024-03-01 00:00:00 UTC, a leap year
         let p = build_time_packet(1709251200_000_000_000, 0, 0);
         assert_eq!(u32::from_le_bytes([p[24], p[25], p[26], p[27]]), 0x130);
+    }
+
+    // ---------------- Milestone 5: live streaming ----------------
+
+    // Builds the same 20 bytes Python's struct.pack("<IQff", ...) sends.
+    fn datagram(index: u32, t_ns: u64, entropy: f32, top_prob: f32) -> Vec<u8> {
+        let mut d = Vec::new();
+        d.extend_from_slice(&index.to_le_bytes());
+        d.extend_from_slice(&t_ns.to_le_bytes());
+        d.extend_from_slice(&entropy.to_le_bytes());
+        d.extend_from_slice(&top_prob.to_le_bytes());
+        d
+    }
+
+    fn rtc_of(p: &[u8]) -> u64 {
+        u64::from_le_bytes([p[16], p[17], p[18], p[19], p[20], p[21], 0, 0])
+    }
+
+    #[test]
+    fn datagram_parses() {
+        let r = parse_datagram(&datagram(6, 1795155422181235564, 3.811_142, 0.136_583)).unwrap();
+        assert_eq!((r.index, r.t_ns), (6, 1795155422181235564));
+        assert_eq!((r.entropy, r.top_prob), (3.811_142, 0.136_583));
+    }
+
+    #[test]
+    fn datagram_wrong_length_is_rejected() {
+        assert!(parse_datagram(&[0u8; 19]).is_none());
+        assert!(parse_datagram(&[0u8; 21]).is_none());
+    }
+
+    // These two pin the timing. A file can pass every byte count in ch10scan
+    // and still map readings to the wrong clock time.
+    #[test]
+    fn recorder_first_reading_brings_headers() {
+        let mut rec = Recorder::new();
+        let r = Reading { index: 0, t_ns: 1795155421998010048, entropy: 0.5, top_prob: 0.9 };
+        let out = rec.packets_for(&r);
+        let tmats_len = build_tmats_packet(TMATS, 0, 0).len();
+        assert_eq!(out.len(), tmats_len + 36 + 40); // TMATS + time + one reading
+
+        let time = &out[tmats_len..tmats_len + 36];
+        assert_eq!(time[15], TYPE_TIME);
+        assert_eq!(rtc_of(time), 0); // RTC 0 = the whole-second anchor
+
+        let conf = &out[tmats_len + 36..];
+        assert_eq!(conf[13], 1); // seq 1 on channel 0
+        assert_eq!(rtc_of(conf), 9_980_100); // first token is 0.998 s AFTER the anchor
+    }
+
+    #[test]
+    fn recorder_later_readings_are_one_packet() {
+        let mut rec = Recorder::new();
+        rec.packets_for(&Reading { index: 0, t_ns: 1795155421998010048, entropy: 0.5, top_prob: 0.9 });
+        let out = rec.packets_for(&Reading { index: 1, t_ns: 1795155422057528658, entropy: 0.5, top_prob: 0.9 });
+        assert_eq!(out.len(), 40);
+        assert_eq!(out[13], 2); // seq 2
+        assert_eq!(rtc_of(&out), 10_575_286); // 1.0575 s after the anchor
+    }
+
+    #[test]
+    fn udp_records_live_readings() {
+        // A real UDP round trip on this machine: a receiver thread and a sender.
+        let rx = UdpSocket::bind("127.0.0.1:0").unwrap();
+        let addr = rx.local_addr().unwrap();
+        let out = std::env::temp_dir().join("ch10write_udp_test.c10");
+        let out_path = out.to_str().unwrap().to_string();
+        let receiver = std::thread::spawn(move || record(&rx, &out_path));
+
+        let tx = UdpSocket::bind("127.0.0.1:0").unwrap();
+        let times = [1795155421998010048u64, 1795155422057528658, 1795155422083224414];
+        for (i, t) in times.iter().enumerate() {
+            tx.send_to(&datagram(i as u32, *t, 1.0, 0.5), addr).unwrap();
+        }
+        tx.send_to(&[], addr).unwrap(); // end of run
+
+        assert_eq!(receiver.join().unwrap(), 3);
+        let bytes = fs::read(&out).unwrap();
+        assert_eq!(bytes.len(), build_tmats_packet(TMATS, 0, 0).len() + 36 + 3 * 40);
     }
 }
