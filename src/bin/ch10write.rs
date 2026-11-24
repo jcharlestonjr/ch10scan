@@ -161,9 +161,11 @@ fn rtc_from_ns(t_ns: u64, t0_ns: u64) -> u64 {
     // YOUR PART 3 (5 min, warm-up):
     // 1. how many ns since t0?
     // 2. turn ns into 100 ns ticks (integer division drops the leftover, that's fine)
-    //
+    let mut t = t_ns - t0_ns;
+    let t_mhz: u64 = t / 100;
     // Done when: cargo test --bin ch10write rtc_
-    todo!("rtc_from_ns")
+    //todo!("rtc_from_ns")
+    return t_mhz;
 }
 
 /// One reading -> one Computer Generated Format 0 (user-defined) packet on channel 0.
@@ -171,16 +173,38 @@ fn rtc_from_ns(t_ns: u64, t0_ns: u64) -> u64 {
 fn build_confidence_packet(r: &Reading, seq: u8, rtc: u64) -> Vec<u8> {
     // YOUR PART 4: same shape as build_tmats_packet, different payload.
     // 1. csdw: u32 = 0
+    let csdw: u32 = 0;
     // 2. data_len = 4 (the CSDW) + READING_BYTES
+    let data_len: u32 = 4 + READING_BYTES;
     // 3. packet_len = 24 + data_len, rounded up to a multiple of 4 (works out to 40)
+    let packet_len: u32 = 24 + data_len;
+    let packet_len: u32 = (packet_len + 3) / 4 * 4;
     // 4. a Header: channel 0, flags 0, version DATA_TYPE_VERSION,
     //    data_type TYPE_USER_DEFINED, plus the seq and rtc you were given
     // 5. extend_from_slice in this order: header, csdw, r.index, r.entropy, r.top_prob
     //    (all with .to_le_bytes(); f32 has it too)
     // 6. resize to packet_len and return it
+    let hdr = Header {
+        channel_id: 0,
+        packet_len,
+        data_len,
+        version: DATA_TYPE_VERSION,
+        seq,
+        flags: 0,
+        data_type: TYPE_USER_DEFINED,
+        rtc,
+    };
     //
+    let mut packet = Vec::new();
+    packet.extend_from_slice(&build_header(&hdr));
+    packet.extend_from_slice(&csdw.to_le_bytes());
+    packet.extend_from_slice(&r.index.to_le_bytes());
+    packet.extend_from_slice(&r.entropy.to_le_bytes());
+    packet.extend_from_slice(&r.top_prob.to_le_bytes());
+    packet.resize(packet_len as usize, 0);
+    return packet;
     // Done when: cargo test --bin ch10write confidence_packet_layout
-    todo!("build_confidence_packet")
+    //todo!("build_confidence_packet")
 }
 
 fn main() {
@@ -195,6 +219,12 @@ fn main() {
     let mut file = build_tmats_packet(TMATS, 0, 0);
 
     // YOUR PART 5: append one confidence packet per reading.
+    let mut seq: u8 = 1; // Sequence numbers count per channel, and channel 0 already used 0 for TMATS.
+    for r in &readings {
+        let rtc = rtc_from_ns(r.t_ns, t0);
+        file.extend_from_slice(&build_confidence_packet(r, seq, rtc));
+        seq = seq.wrapping_add(1); // rolls 255 -> 0, as the standard expects
+    }  
     // 1. let mut seq: u8 = 1;
     //    Sequence numbers count per channel, and channel 0 already used 0 for TMATS.
     // 2. for r in &readings {
