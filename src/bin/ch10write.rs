@@ -176,7 +176,7 @@ fn rtc_from_ns(t_ns: u64, t0_ns: u64) -> u64 {
     // YOUR PART 3 (5 min, warm-up):
     // 1. how many ns since t0?
     // 2. turn ns into 100 ns ticks (integer division drops the leftover, that's fine)
-    let mut t = t_ns - t0_ns;
+    let t = t_ns - t0_ns;
     let t_mhz: u64 = t / 100;
     // Done when: cargo test --bin ch10write rtc_
     //todo!("rtc_from_ns")
@@ -268,30 +268,51 @@ fn bcd_doy_words(p: &UtcParts) -> [u16; 3] {
     // word 2: bits 3-0  units of day,      bits 7-4   tens of day
     //         bits 9-8  hundreds of day
     //
-    // Build each word by shifting each digit into place and OR-ing them:
-    //   (digit << bit_position) | (next_digit << its_position) | ...
-    // Work in u32 (the fields already are), then cast: [w0 as u16, w1 as u16, w2 as u16]
-    //
-    // Done when: cargo test --bin ch10write bcd_
-    todo!("bcd_doy_words")
+    let w0: u32 = (p.ms / 10 % 10) | ((p.ms / 100) << 4) | ((p.sec % 10) << 8) | ((p.sec / 10) << 12);
+    let w1: u32 = (p.min % 10) | ((p.min / 10) << 4) | ((p.hour % 10) << 8) | ((p.hour / 10) << 12);
+    let w2: u32 = (p.doy % 10) | (((p.doy / 10) % 10) << 4) | ((p.doy / 100) << 8);
+    [w0 as u16, w1 as u16, w2 as u16]
 }
 
 /// One Time Data Format 1 packet: "at this RTC, the clock read this time."
 fn build_time_packet(t_ns: u64, seq: u8, rtc: u64) -> Vec<u8> {
     // YOUR PART 7: same shape as your other packets.
     // 1. parts = utc_parts(t_ns)
+    let parts = utc_parts(t_ns);
     // 2. let mut csdw: u32 = TIME_CSDW_RTC_INTERNAL;
+    let mut csdw: u32 = TIME_CSDW_RTC_INTERNAL;
+    if is_leap(parts.year) {
+        csdw |= 1 << 8;
+    }
+    let words = bcd_doy_words(&parts);
+    let data_len: u32 = 4 + 6; // 4 (CSDW) + 6 (three u16 words)
+    let packet_len: u32 = 24 + data_len;
+    let packet_len: u32 = (packet_len + 3) / 4 * 4; // round up to multiple of 4
+    let hdr = Header {
+        channel_id: TIME_CHANNEL,
+        packet_len,
+        data_len,
+        version: DATA_TYPE_VERSION,
+        seq,
+        flags: 0,
+        data_type: TYPE_TIME,
+        rtc,
+    };
+    let mut packet = Vec::new();
+    packet.extend_from_slice(&build_header(&hdr));
+    packet.extend_from_slice(&csdw.to_le_bytes());
+    for word in &words {
+        packet.extend_from_slice(&word.to_le_bytes());
+    }
+    packet.resize(packet_len as usize, 0);
+    return packet;
+
     //    if it's a leap year, set bit 8:  csdw |= 1 << 8;
     // 3. words = bcd_doy_words(&parts)
     // 4. data_len = 4 (CSDW) + 6 (three u16 words) = 10
-    //    packet_len = 24 + 10 rounded up to a multiple of 4 = 36 (2 bytes of filler)
-    // 5. Header: channel TIME_CHANNEL, data_type TYPE_TIME, flags 0,
-    //    version DATA_TYPE_VERSION, plus the seq and rtc you were given
-    // 6. header, csdw, then each word's .to_le_bytes(); resize; return
-    //
-    // Done when: cargo test --bin ch10write time_packet   (both time_packet tests)
-    todo!("build_time_packet")
 }
+
+
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -304,6 +325,10 @@ fn main() {
     // YOUR PART 8: anchor the RTC to real clock time.
     // Real recorders put time packets on whole seconds, so:
     // 1. anchor_ns = first token's t_ns rounded DOWN to a whole second
+    let anchor_ns = t0 - (t0 % 1_000_000_000);
+    let anchor_rtc = rtc_from_ns(t0, anchor_ns);
+    let time_packet = build_time_packet(anchor_ns, 0, anchor_rtc);
+
     //    (integer-divide by 1_000_000_000, then multiply back)
     // 2. use anchor_ns instead of t0 when you call rtc_from_ns below,
     //    so RTC 0 = the anchor and the first token lands at about 0.998 s
@@ -316,7 +341,9 @@ fn main() {
     // Done when: ch10scan shows a ch 1 Time F1 packet and "OK: all 2580 bytes accounted for"
 
     let mut file = build_tmats_packet(TMATS, 0, 0);
-
+    file.extend_from_slice(&time_packet);
+    let a = utc_parts(anchor_ns);
+    eprintln!("time anchor: {} day {} {:02}:{:02}:{:02} UTC", a.year, a.doy, a.hour, a.min, a.sec);
     // YOUR PART 5: append one confidence packet per reading.
     let mut seq: u8 = 1; // Sequence numbers count per channel, and channel 0 already used 0 for TMATS.
     for r in &readings {
