@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Range Quest</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Pixelify+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --dusk: #1d1a33;
+    --dusk-deep: #15122a;
+    --mesa: #3b2f4a;
+    --mesa-hi: #4d3e60;
+    --sand: #f0d9b0;
+    --sand-dim: #b9a587;
+    --amber: #ffb347;
+    --sage: #9fb38a;
+    --anomaly: #ff5e8a;
+    --pixel: "Pixelify Sans", "Trebuchet MS", system-ui, sans-serif;
+    --read: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+    --code: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; }
+  body {
+    background: var(--dusk);
+    color: var(--sand);
+    font: 400 16px/1.5 var(--read);
+    min-height: 100vh;
+  }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  :focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; }
+
+  /* Pixel frame: a stepped border instead of rounded corners */
+  .frame {
+    background: var(--mesa);
+    box-shadow:
+      0 -4px 0 0 var(--mesa), 0 4px 0 0 var(--mesa),
+      -4px 0 0 0 var(--mesa), 4px 0 0 0 var(--mesa),
+      0 -8px 0 0 var(--dusk-deep), 0 8px 0 0 var(--dusk-deep),
+      -8px 0 0 0 var(--dusk-deep), 8px 0 0 0 var(--dusk-deep),
+      -4px -4px 0 0 var(--dusk-deep), 4px -4px 0 0 var(--dusk-deep),
+      -4px 4px 0 0 var(--dusk-deep), 4px 4px 0 0 var(--dusk-deep);
+  }
+  .btn {
+    background: var(--amber);
+    color: var(--dusk-deep);
+    border: 0;
+    padding: 8px 16px;
+    font: 600 18px/1 var(--pixel);
+    box-shadow: 0 4px 0 0 #b9762a;
+    transform: translateY(0);
+  }
+  .btn:hover { background: #ffc46e; }
+  .btn:active { transform: translateY(4px); box-shadow: none; }
+  .btn[disabled] { background: var(--mesa-hi); color: var(--sand-dim); box-shadow: none; cursor: default; }
+  .btn.quiet { background: var(--mesa-hi); color: var(--sand); box-shadow: 0 4px 0 0 var(--dusk-deep); }
+  .btn.quiet:hover { background: #5c4b72; }
+
+  /* HUD */
+  .hud {
+    display: grid;
+    grid-template-columns: auto auto 1fr auto auto auto;
+    align-items: center;
+    gap: 20px;
+    padding: 18px 28px;
+    border-bottom: 4px solid var(--dusk-deep);
+    background: var(--dusk-deep);
+  }
+  .logo { margin: 0; font: 700 30px/1 var(--pixel); color: var(--amber); letter-spacing: 1px; }
+  .rank { font: 600 20px/1.1 var(--pixel); white-space: nowrap; }
+  .rank small { display: block; font: 400 14px/1.2 var(--read); color: var(--sand-dim); }
+  .xp { position: relative; height: 28px; background: var(--mesa); }
+  .xp-fill { position: absolute; inset: 0 auto 0 0; width: 0; background:
+      repeating-linear-gradient(90deg, var(--amber) 0 10px, #e59a35 10px 12px); transition: width .8s steps(20); }
+  .xp-text { position: absolute; inset: 0; display: grid; place-items: center; }
+  .xp-text span { padding: 3px 10px; background: var(--dusk-deep); font: 600 15px/1 var(--pixel); color: var(--sand); }
+  .streak { display: flex; align-items: center; gap: 8px; font: 600 18px/1 var(--pixel); white-space: nowrap; }
+  .streak canvas { width: 20px; height: 24px; image-rendering: pixelated; }
+  .icon-btn { background: none; border: 0; padding: 6px; font: 600 15px/1 var(--pixel); color: var(--sand-dim); }
+  .icon-btn:hover { color: var(--sand); }
+
+  /* Main layout */
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.7fr) minmax(320px, 1fr);
+    gap: 28px;
+    padding: 28px;
+    align-items: start;
+  }
+  .map-wrap { position: relative; }
+  #map { display: block; width: 100%; aspect-ratio: 16 / 9; image-rendering: pixelated; background: var(--mesa); }
+  .zone-pin {
+    position: absolute;
+    transform: translate(-50%, 18px);
+    background: var(--dusk-deep);
+    color: var(--sand);
+    border: 0;
+    padding: 4px 10px;
+    font: 600 14px/1.1 var(--pixel);
+    white-space: nowrap;
+    box-shadow: 0 3px 0 0 #0d0b1c;
+  }
+  .zone-pin[data-state="cleared"] { color: var(--sage); }
+  .zone-pin[data-state="active"] { color: var(--amber); }
+  .zone-pin[data-state="locked"] { color: #7d6f8e; }
+  .zone-pin[aria-pressed="true"] { background: var(--amber); color: var(--dusk-deep); }
+
+  .panel { padding: 22px 24px 24px; }
+  .panel h2 { margin: 0; font: 700 28px/1.1 var(--pixel); }
+  .panel .sub { margin: 4px 0 18px; color: var(--sand-dim); }
+  .quests { list-style: none; margin: 0 0 22px; padding: 0; display: grid; gap: 10px; }
+  .quest { display: grid; grid-template-columns: 22px 1fr auto; gap: 10px; align-items: start; }
+  .mark { width: 18px; height: 18px; margin-top: 3px; background: var(--dusk-deep); box-shadow: inset 0 0 0 3px var(--amber); }
+  .quest.done .mark { background: var(--sage); box-shadow: inset 0 0 0 3px #6f835c; }
+  .quest .name { font-weight: 700; }
+  .quest.done .name { color: var(--sage); }
+  .quest .xpv { font: 600 15px/1.6 var(--pixel); color: var(--amber); white-space: nowrap; }
+  .quest.done .xpv { color: var(--sage); }
+  .quest details { grid-column: 2 / 4; }
+  .quest summary { color: var(--sand-dim); font-size: 14px; cursor: pointer; width: max-content; }
+  .quest summary:hover { color: var(--sand); }
+  pre.brief {
+    margin: 8px 0 0; padding: 12px 14px; background: var(--dusk-deep); color: var(--sand);
+    font: 13px/1.5 var(--code); white-space: pre-wrap; max-height: 260px; overflow: auto;
+  }
+
+  .curse { margin: 0 0 20px; padding: 12px 14px; background: #2a1f3d; border-left: 4px solid var(--anomaly); }
+  .curse b { color: var(--anomaly); font: 700 17px/1.3 var(--pixel); }
+  .curse p { margin: 4px 0 0; font-size: 15px; }
+  .curse.lifted { border-left-color: var(--sage); }
+  .curse.lifted b { color: var(--sage); }
+
+  .boss { display: grid; grid-template-columns: 96px 1fr; gap: 16px; padding: 16px; background: var(--dusk-deep); }
+  .boss canvas { width: 96px; height: 96px; image-rendering: pixelated; }
+  .boss h3 { margin: 0; font: 700 21px/1.15 var(--pixel); color: var(--anomaly); }
+  .boss.down h3 { color: var(--sage); }
+  .boss p { margin: 6px 0 10px; font-size: 15px; color: var(--sand-dim); }
+  .pips { display: flex; gap: 4px; margin-bottom: 12px; flex-wrap: wrap; }
+  .pip { width: 14px; height: 10px; background: var(--anomaly); }
+  .pip.hit { background: #4a3a58; }
+  .locked-note { color: var(--sand-dim); }
+  .why { color: var(--sand-dim); font-size: 15px; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* Next quest bar */
+  .left { display: grid; gap: 24px; }
+  .next {
+    display: grid; grid-template-columns: auto 1fr auto; gap: 20px; align-items: center;
+    padding: 18px 22px;
+    background: var(--dusk-deep);
+    border-left: 6px solid var(--amber);
+  }
+  .next .label { font: 700 20px/1 var(--pixel); color: var(--amber); white-space: nowrap; }
+  .next .what { font-weight: 700; }
+  .next .why { color: var(--sand-dim); font-size: 15px; }
+  .cmd { display: flex; align-items: center; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+  code.chip { background: var(--mesa); padding: 4px 8px; font: 14px/1.4 var(--code); color: var(--sand); }
+  .copy { background: none; border: 0; padding: 2px 6px; color: var(--amber); font: 600 14px/1 var(--pixel); }
+  pre.error { margin: 8px 0 0; padding: 10px 12px; background: #2a1f3d; color: #ffc2d3; font: 13px/1.45 var(--code); white-space: pre-wrap; max-height: 220px; overflow: auto; }
+
+  /* Bottom tabs */
+  .lower { padding: 28px; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+  .tab { background: none; border: 0; padding: 8px 14px; font: 600 18px/1 var(--pixel); color: var(--sand-dim); }
+  .tab[aria-selected="true"] { color: var(--dusk-deep); background: var(--sand); }
+  .ach-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
+  .ach { display: grid; grid-template-columns: 40px 1fr; gap: 12px; align-items: center; padding: 12px; background: var(--dusk-deep); }
+  .ach canvas { width: 40px; height: 40px; image-rendering: pixelated; }
+  .ach b { display: block; font: 700 16px/1.2 var(--pixel); }
+  .ach span { font-size: 14px; color: var(--sand-dim); line-height: 1.35; }
+  .ach.locked { opacity: .55; }
+  .ach.fresh { box-shadow: inset 0 0 0 3px var(--amber); }
+  .legends, .commits { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; max-width: 760px; }
+  .legends li, .commits li { display: flex; justify-content: space-between; gap: 16px; padding: 10px 14px; background: var(--dusk-deep); }
+  .legends li.sealed { color: #8e80a0; }
+  .legends .lv { font: 600 15px/1.5 var(--pixel); color: var(--amber); white-space: nowrap; }
+  .legends li.sealed .lv { color: #8e80a0; }
+  .commits time { color: var(--sand-dim); white-space: nowrap; font-size: 14px; }
+
+  /* Fight */
+  dialog.fight {
+    width: min(860px, 94vw); border: 0; padding: 0; color: var(--sand); background: var(--mesa);
+  }
+  dialog.fight::backdrop { background: rgba(21, 18, 42, .86); }
+  .fight-head { display: flex; justify-content: space-between; align-items: center; padding: 16px 22px; background: var(--dusk-deep); }
+  .fight-head h2 { margin: 0; font: 700 26px/1.1 var(--pixel); color: var(--anomaly); }
+  .stage { display: grid; grid-template-columns: 160px 1fr 72px; gap: 20px; align-items: end; padding: 22px; }
+  .stage canvas.bossbig { width: 160px; height: 160px; image-rendering: pixelated; }
+  .stage canvas.herobig { width: 72px; height: 96px; image-rendering: pixelated; justify-self: end; }
+  .scope { display: grid; gap: 6px; }
+  .scope canvas { width: 100%; aspect-ratio: 32 / 10; image-rendering: pixelated; background: var(--dusk-deep); }
+  .scope .cap { display: flex; justify-content: space-between; font: 600 14px/1 var(--pixel); color: var(--sand-dim); }
+  .log { list-style: none; margin: 0; padding: 0 22px 8px; display: grid; gap: 6px; max-height: 240px; overflow: auto; }
+  .log li { padding: 6px 10px; background: var(--dusk-deep); font-size: 15px; }
+  .log li.hit { border-left: 4px solid var(--sage); }
+  .log li.miss { border-left: 4px solid var(--anomaly); }
+  .log li.wait { border-left: 4px solid var(--sand-dim); color: var(--sand-dim); }
+  .log pre { margin: 6px 0 0; font: 12.5px/1.45 var(--code); white-space: pre-wrap; color: #ffc2d3; }
+  .verdict { padding: 14px 22px 22px; display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .verdict p { margin: 0; font: 600 20px/1.3 var(--pixel); }
+  .shake { animation: shake .3s steps(3); }
+  @keyframes shake { 0% { transform: translate(0,0); } 33% { transform: translate(-6px,2px); } 66% { transform: translate(6px,-2px); } 100% { transform: translate(0,0); } }
+  .flash { animation: flash .25s steps(2); }
+  @keyframes flash { 50% { filter: brightness(3) saturate(0); } }
+
+  /* Toasts and loading */
+  .toasts { position: fixed; right: 24px; bottom: 24px; display: grid; gap: 12px; z-index: 50; }
+  .toast { min-width: 260px; max-width: 360px; padding: 12px 16px; background: var(--dusk-deep); border-left: 6px solid var(--amber); box-shadow: 0 6px 0 0 #0d0b1c; }
+  .toast b { display: block; font: 700 18px/1.2 var(--pixel); color: var(--amber); }
+  .toast.level { border-left-color: var(--sage); }
+  .toast.level b { color: var(--sage); font-size: 22px; }
+  .loading { position: fixed; inset: 0; display: grid; place-items: center; background: var(--dusk); z-index: 60; text-align: center; }
+  .loading p { font: 600 22px/1.4 var(--pixel); margin: 0; }
+  .loading small { display: block; margin-top: 8px; font: 15px/1.4 var(--read); color: var(--sand-dim); }
+
+  @media (max-width: 1000px) {
+    .hud { grid-template-columns: 1fr auto; }
+    .xp { grid-column: 1 / -1; }
+    .layout { grid-template-columns: 1fr; }
+    .next { grid-template-columns: 1fr; }
+    .stage { grid-template-columns: 96px 1fr; }
+    .stage canvas.herobig { display: none; }
+    .stage canvas.bossbig { width: 96px; height: 96px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .xp-fill { transition: none; }
+    .shake, .flash { animation: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="loading" id="loading" role="status">
+  <div>
+    <p>Scanning the range…</p>
+    <small>The first scan compiles and runs your tests. A few seconds.</small>
+  </div>
+</div>
+
+<header class="hud">
+  <h1 class="logo">Range Quest</h1>
+  <div class="rank" id="rank"></div>
+  <div class="xp" role="progressbar" aria-label="Experience" id="xpbar" aria-valuemin="0">
+    <div class="xp-fill" id="xpfill"></div>
+    <div class="xp-text" id="xptext"></div>
+  </div>
+  <div class="streak" id="streak" title="Weeknights in a row with a commit"></div>
+  <button class="icon-btn" id="mute" aria-pressed="false">Sound on</button>
+  <button class="btn" id="rescan">Rescan</button>
+</header>
+
+<main class="layout">
+  <div class="left">
+    <section class="map-wrap" aria-label="Range map">
+      <canvas id="map" width="256" height="144"></canvas>
+      <div id="pins"></div>
+    </section>
+    <section class="next" id="next" aria-live="polite"></section>
+  </div>
+  <aside class="panel frame" id="zone" aria-live="polite"></aside>
+</main>
+
+<section class="lower">
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-tab="ach">Achievements</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="legends">Legends</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="commits">Your recent commits</button>
+  </div>
+  <div id="tab-ach" class="ach-grid" role="tabpanel"></div>
+  <ul id="tab-legends" class="legends" role="tabpanel" hidden></ul>
+  <ul id="tab-commits" class="commits" role="tabpanel" hidden></ul>
+</section>
+
+<dialog class="fight" id="fight" aria-labelledby="fight-title">
+  <div class="fight-head">
+    <h2 id="fight-title"></h2>
+    <button class="btn quiet" id="fight-close">Close</button>
+  </div>
+  <div class="stage" id="stage">
+    <canvas class="bossbig" id="bossbig" width="16" height="16"></canvas>
+    <div class="scope">
+      <canvas id="scope" width="320" height="100"></canvas>
+      <div class="cap"><span>Boss signal</span><span id="scope-cap"></span></div>
+    </div>
+    <canvas class="herobig" id="herobig" width="12" height="16"></canvas>
+  </div>
+  <ol class="log" id="log" aria-live="polite"></ol>
+  <div class="verdict"><p id="verdict"></p><div id="verdict-act"></div></div>
+</dialog>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script>
+"use strict";
+
+/* ---------- Palette and sprites ---------- */
+const PAL = {
+  k: "#120f22", d: "#2a2347", m: "#3b2f4a", v: "#7a6aa8", w: "#fff4e0",
+  s: "#f0d9b0", a: "#ffb347", o: "#c9893f", g: "#9fb38a", p: "#ff5e8a", b: "#6b4a3a",
+};
+const HERO = [
+  "....aaaa....", "...aaaaaa...", "..aaaaaaaa..", ".oooooooooo.",
+  "..gssssssg..", "..gskssksg..", "...ssssss...", "....ssss.g..",
+  "..vvvvvvvv..", ".vvvavvvvvv.", ".svvvvvvvvs.", ".svvvvvvvvs.",
+  "..vvvvvvvv..", "..vvv..vvv..", "..vvv..vvv..", "..kkk..kkk..",
+];
+const BOSSES = {
+  m1: [ // the Hallucinating Oracle
+    "................", ".....vvvvvv.....", "...vvvvvvvvvv...", "..vvwwwwwwwwvv..",
+    ".vvwwwwppwwwwvv.", ".vwwwwppppwwwwv.", "vvwwwppkkppwwwvv", "vvwwwppkkppwwwvv",
+    ".vwwwwppppwwwwv.", ".vvwwwwppwwwwvv.", "..vvwwwwwwwwvv..", "...vvvvvvvvvv...",
+    ".....vvvvvv.....", "......a..a......", ".....a....a.....", "......a..a......",
+  ],
+  m2: [ // the Checksum Golem
+    "....mmmmmmmm....", "...mvvvvvvvvm...", "...mvkvvvvkvm...", "...mvvvvvvvvm...",
+    "...mmvppppvmm...", ".mmmmmmmmmmmmmm.", "mvvmvvvvvvvvmvvm", "mvvmvvaaaavvmvvm",
+    "mvvmvvaaaavvmvvm", "mvvmvvvvvvvvmvvm", ".mm.mvvvvvvm.mm.", "....mvvmmvvm....",
+    "....mvvmmvvm....", "...mmvvmmvvmm...", "...mmmm..mmmm...", "................",
+  ],
+  m3: [ // the Byte Bandit
+    "......kkkk......", ".....kmmmmk.....", "....kmmmmmmk....", "....kkkkkkkk....",
+    "....kpkkkkpk....", "....kssssssk....", ".....kssssk.....", "....mmmmmmmm..oo",
+    "...mmmmmmmmmmooo", "..smmmmmmmmmsooo", "..smmmmmmmm..oo.", "....mmmmmmmm....",
+    "....mmm..mmm....", "....mmm..mmm....", "...kkkk..kkkk...", "................",
+  ],
+  m4: [ // the Chronomancer
+    ".......vv.......", "......vvvv......", ".....vvvvvv.....", "....vvkkkkvv....",
+    "...vvkwwwwkvv...", "...vkwwkwwwkv...", "..vvkwwkwwwkvv..", "..vvkwwkkkwkvv..",
+    "..vvkwwwwwwkvv..", "..vvvkwwwwkvvv..", ".vvvvvkkkkvvvvv.", ".vvvvvvvvvvvvvv.",
+    "vvvvvvvvvvvvvvvv", "vvvvvvaavvvvvvvv", "vvvvvvvvvvvvvvvv", "kkkkkkkkkkkkkkkk",
+  ],
+  m5: [ // the Phantom Packet
+    "................", "..pppppppppppp..", ".pwwwwwwwwwwwwp.", ".pwpwwwwwwwwpwp.",
+    ".pwwpwwwwwwpwwp.", ".pwwwpwwwwpwwwp.", ".pwwwwpppppwwwp.", ".pwwkwwwwwwkwwp.",
+    ".pwwkwwwwwwkwwp.", ".pwwwwwkkwwwwwp.", ".pwwwwwwwwwwwwp.", ".pwwwwwwwwwwwwp.",
+    ".pwpwwpwwpwwpwp.", ".pp.pp.pp.pp.pp.", "................", "................",
+  ],
+};
+const MEDAL = [
+  "...aaaa...", "..aaaaaa..", ".aaossoaa.", ".aossssoa.", ".aossssoa.",
+  ".aaossoaa.", "..aaaaaa..", "...aaaa...", "..p....p..", ".pp....pp.",
+];
+const FLAME = [
+  "....a...", "...aa...", "...aaa..", "..aaaa..", "..apaaa.", ".aappaa.",
+  ".appppa.", ".appwpa.", ".apwwpa.", "..awwa..",
+];
+
+function drawSprite(ctx, rows, x, y, scale = 1, opts = {}) {
+  for (let r = 0; r < rows.length; r++) {
+    for (let c = 0; c < rows[r].length; c++) {
+      const ch = rows[r][c];
+      if (ch === ".") continue;
+      let col = PAL[ch];
+      if (opts.mono) col = opts.mono;
+      ctx.fillStyle = col;
+      ctx.fillRect(x + c * scale, y + r * scale, scale, scale);
+    }
+  }
+}
+function spriteCanvas(canvas, rows, opts) {
+  canvas.width = rows[0].length; canvas.height = rows.length;
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawSprite(ctx, rows, 0, 0, 1, opts);
+}
+
+/* ---------- Storage (per browser, best effort) ---------- */
+const store = {
+  get(k, d) { try { const v = localStorage.getItem("rq:" + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem("rq:" + k, JSON.stringify(v)); } catch {} },
+};
+
+/* ---------- Sound ---------- */
+let audio = null;
+let muted = store.get("muted", false);
+function tone(freqs, dur = 0.08, type = "square", gain = 0.05) {
+  if (muted) return;
+  try {
+    audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+    let t = audio.currentTime;
+    for (const f of freqs) {
+      const o = audio.createOscillator(), g = audio.createGain();
+      o.type = type; o.frequency.value = f; g.gain.value = gain;
+      o.connect(g); g.connect(audio.destination);
+      o.start(t); g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.stop(t + dur); t += dur * 0.9;
+    }
+  } catch {}
+}
+const sfx = {
+  hit: () => tone([660, 990], 0.07),
+  miss: () => tone([220, 150], 0.12, "sawtooth", 0.04),
+  win: () => tone([523, 659, 784, 1047], 0.11),
+  level: () => tone([392, 523, 659, 784, 1047, 1319], 0.1),
+  unlock: () => tone([880, 1175], 0.09, "triangle", 0.06),
+};
+
+const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const sleep = (ms) => new Promise((r) => setTimeout(r, reduced ? 0 : ms));
+
+/* ---------- Game state from facts ---------- */
+let Q = null;      // quests.json
+let F = null;      // facts from the server
+let G = null;      // computed game state
+let selected = null;
+
+function testsPass(names) {
+  return names.every((n) => F.tests[n] && F.tests[n].status === "pass");
+}
+function verify(v) {
+  if (!v || !F) return false;
+  if (v.tests && !testsPass(v.tests)) return false;
+  if (v.files && !v.files.every((f) => F.files[f])) return false;
+  if (v.commit && !F.git.subjects.some((s) => s.includes(v.commit))) return false;
+  if (v.model_file && !(F.model_file.exists && F.model_file.ok && F.model_file.readings >= v.model_file)) return false;
+  if (v.e2e && !(F.e2e[v.e2e] && F.e2e[v.e2e].pass)) return false;
+  if (v.warnings_zero && F.warnings !== 0) return false;
+  if (v.pushed && !F.git.pushed) return false;
+  if (v.streak && F.git.streak < v.streak) return false;
+  return true;
+}
+function checkResult(chk) {
+  if (chk.e2e) {
+    const r = F.e2e[chk.e2e];
+    if (!r) return { state: "wait", message: "Runs once the checks above pass." };
+    return { state: r.pass ? "pass" : "fail", message: r.message };
+  }
+  if (chk.files) return { state: verify(chk) ? "pass" : "fail", message: "Missing: " + chk.files.join(", ") };
+  const fails = (chk.tests || []).filter((n) => !(F.tests[n] && F.tests[n].status === "pass"));
+  if (!fails.length) return { state: "pass", message: "" };
+  const t = F.tests[fails[0]];
+  return { state: "fail", message: t ? t.message : `Test ${fails[0]} didn't run.` };
+}
+
+function compute() {
+  const zones = Q.zones.map((z) => {
+    if (z.locked) return { ...z, state: "locked", quests: [], bossDown: false };
+    const quests = z.quests.map((q) => ({ ...q, done: verify(q.verify) }));
+    const checks = z.boss.checks.map((c) => ({ ...c, result: checkResult(c) }));
+    const bossDown = checks.every((c) => c.result.state === "pass");
+    const cursed = z.curse ? !verify(z.curse.lifted_by) : false;
+    const cleared = bossDown && quests.every((q) => q.done);
+    return { ...z, quests, checks, bossDown, cursed, cleared };
+  });
+  let activeSet = false;
+  for (const z of zones) {
+    if (z.state === "locked") continue;
+    if (z.cleared) z.state = "cleared";
+    else if (!activeSet) { z.state = "active"; activeSet = true; }
+    else z.state = "ahead";
+  }
+  const achievements = Q.achievements.map((a) => ({ ...a, got: verify(a.verify) }));
+  let xp = 0;
+  for (const z of zones) {
+    for (const q of z.quests) if (q.done) xp += q.xp;
+    if (z.bossDown) xp += z.boss.xp;
+  }
+  xp += achievements.filter((a) => a.got).length * Q.achievement_xp;
+  let li = 0;
+  Q.levels.forEach((l, i) => { if (xp >= l.xp) li = i; });
+  const next = Q.levels[li + 1] || null;
+  return { zones, achievements, xp, level: li + 1, title: Q.levels[li].title, next, floor: Q.levels[li].xp };
+}
+
+function briefFor(q) {
+  if (q.part && F.briefings[String(q.part)]) return F.briefings[String(q.part)];
+  return q.brief || "";
+}
+function commandFor(q) {
+  const m = briefFor(q).match(/Done when:\s*(cargo [^\n(]+)/);
+  return m ? m[1].trim() : null;
+}
+
+/* ---------- Map ---------- */
+const map = document.getElementById("map");
+const mctx = map.getContext("2d");
+let terrain = null;
+let tick = 0;
+
+function rng(seed) { return () => (seed = (seed * 16807) % 2147483647) / 2147483647; }
+
+function buildTerrain() {
+  const c = document.createElement("canvas");
+  c.width = 256; c.height = 144;
+  const x = c.getContext("2d");
+  const rand = rng(1106);
+  // desert floor at dusk
+  x.fillStyle = "#56435f"; x.fillRect(0, 0, 256, 144);
+  for (let i = 0; i < 1400; i++) {
+    x.fillStyle = rand() < 0.5 ? "#4c3a56" : "#614c69";
+    x.fillRect(Math.floor(rand() * 256), Math.floor(rand() * 144), 1, 1);
+  }
+  // dry lake bed
+  x.fillStyle = "#86728a";
+  for (let yy = -16; yy <= 16; yy++) {
+    const w = Math.floor(46 * Math.sqrt(1 - (yy * yy) / 256));
+    x.fillRect(118 - w, 104 + yy, w * 2, 1);
+  }
+  x.fillStyle = "#77637c";
+  for (let i = 0; i < 26; i++) {
+    let px = 90 + rand() * 56, py = 96 + rand() * 16;
+    for (let s = 0; s < 6; s++) { x.fillRect(Math.floor(px), Math.floor(py), 1, 1); px += rand() * 2 - 0.5; py += rand() * 2 - 1; }
+  }
+  // mountains along the north edge
+  for (let col = 0; col < 256; col++) {
+    const h = 18 + Math.floor(10 * Math.sin(col / 17) + 6 * Math.sin(col / 7.3) + 4 * Math.sin(col / 3.1));
+    x.fillStyle = "#2c2442"; x.fillRect(col, 0, 1, h);
+    x.fillStyle = "#3a2f55"; x.fillRect(col, h - 3, 1, 3);
+  }
+  // joshua trees
+  for (let i = 0; i < 40; i++) {
+    const px = Math.floor(rand() * 250), py = 40 + Math.floor(rand() * 100);
+    if (py > 86 && py < 122 && px > 70 && px < 166) continue;
+    x.fillStyle = "#6f7f5f";
+    x.fillRect(px, py, 1, 3); x.fillRect(px - 1, py, 1, 1); x.fillRect(px + 1, py - 1, 1, 1);
+  }
+  terrain = c;
+}
+
+function zxy(z) { return [Math.round(z.pos[0] * 256), Math.round(z.pos[1] * 144)]; }
+
+function drawRoad(zs) {
+  const real = zs.filter((z) => z.state !== "locked");
+  for (let i = 0; i < zs.length - 1; i++) {
+    const [x1, y1] = zxy(zs[i]), [x2, y2] = zxy(zs[i + 1]);
+    const lit = zs[i].state === "cleared";
+    const locked = zs[i + 1].state === "locked";
+    const steps = Math.max(Math.abs(x2 - x1), Math.abs(y2 - y1));
+    for (let s = 0; s <= steps; s++) {
+      if (locked && s % 3) continue;
+      const px = Math.round(x1 + ((x2 - x1) * s) / steps), py = Math.round(y1 + ((y2 - y1) * s) / steps);
+      mctx.fillStyle = lit ? "#ffb347" : locked ? "#3e3150" : "#a88f73";
+      mctx.fillRect(px, py, 2, 2);
+    }
+  }
+  return real;
+}
+
+function drawSite(z) {
+  const [x, y] = zxy(z);
+  const c = mctx;
+  if (z.state === "locked") {
+    c.fillStyle = "#2a2347"; c.fillRect(x - 5, y - 6, 10, 10);
+    c.fillStyle = "#6c5f86";
+    [[-2,-4],[-1,-5],[0,-5],[1,-5],[2,-4],[2,-3],[1,-2],[0,-1],[0,1]].forEach(([a,b]) => c.fillRect(x + a, y + b, 1, 1));
+    return;
+  }
+  const base = z.state === "cleared" ? "#9fb38a" : z.state === "active" ? "#ffb347" : "#b9a587";
+  c.fillStyle = "#2a2347"; c.fillRect(x - 6, y + 2, 13, 2);
+  switch (z.id) {
+    case "m1": // antenna mast
+      c.fillStyle = base; c.fillRect(x, y - 10, 1, 12); c.fillRect(x - 3, y - 7, 7, 1); c.fillRect(x - 2, y - 4, 5, 1);
+      c.fillStyle = tick % 8 < 4 ? "#ff5e8a" : "#7a2a46"; c.fillRect(x, y - 11, 1, 1);
+      break;
+    case "m2": // hangar
+      c.fillStyle = base; c.fillRect(x - 6, y - 3, 13, 5); c.fillRect(x - 5, y - 5, 11, 2); c.fillRect(x - 3, y - 6, 7, 1);
+      c.fillStyle = "#2a2347"; c.fillRect(x - 2, y - 1, 5, 3);
+      break;
+    case "m3": // telemetry van with dish
+      c.fillStyle = base; c.fillRect(x - 6, y - 3, 11, 5); c.fillRect(x + 5, y - 1, 2, 3);
+      c.fillStyle = "#2a2347"; c.fillRect(x - 4, y + 2, 2, 1); c.fillRect(x + 2, y + 2, 2, 1);
+      c.fillStyle = base; c.fillRect(x - 2, y - 6, 1, 3); c.fillRect(x - 4, y - 8, 5, 1); c.fillRect(x - 5, y - 9, 1, 1); c.fillRect(x + 1, y - 9, 1, 1);
+      break;
+    case "m4": // clock tower
+      c.fillStyle = base; c.fillRect(x - 3, y - 12, 7, 14); c.fillRect(x - 2, y - 14, 5, 2); c.fillRect(x, y - 16, 1, 2);
+      c.fillStyle = "#2a2347"; c.fillRect(x - 2, y - 10, 5, 5);
+      c.fillStyle = "#fff4e0"; c.fillRect(x, y - 9, 1, 2); c.fillRect(x + 1, y - 8, 1, 1);
+      break;
+    case "m5": // radio tower with sparks
+      c.fillStyle = base;
+      for (let i = 0; i < 14; i++) { const w = Math.floor(i / 3); c.fillRect(x - w, y - 12 + i, 1, 1); c.fillRect(x + w, y - 12 + i, 1, 1); }
+      c.fillRect(x - 4, y + 1, 9, 1);
+      if (z.state === "active" && tick % 6 < 3) { c.fillStyle = "#ffb347"; c.fillRect(x - 3, y - 14, 1, 1); c.fillRect(x + 3, y - 13, 1, 1); c.fillRect(x, y - 15, 1, 1); }
+      break;
+  }
+  if (z.state === "cleared") { // flag
+    c.fillStyle = "#e9dcc4"; c.fillRect(x + 6, y - 10, 1, 12);
+    c.fillStyle = "#9fb38a"; c.fillRect(x + 7, y - 10, 5, 3);
+  }
+  if (z.cursed) { // storm cloud over the tower
+    c.fillStyle = "#1a1530"; c.fillRect(x - 10, y - 22, 21, 5); c.fillRect(x - 7, y - 25, 15, 3); c.fillRect(x - 3, y - 27, 8, 2);
+    c.fillStyle = "#2e2650"; c.fillRect(x - 9, y - 22, 19, 1); c.fillRect(x - 6, y - 25, 13, 1);
+    if (reduced || tick % 10 < 3) { c.fillStyle = "#ff5e8a"; c.fillRect(x + 3, y - 17, 1, 2); c.fillRect(x + 2, y - 15, 1, 2); c.fillRect(x + 3, y - 13, 1, 1); }
+  }
+}
+
+function drawMap() {
+  if (!terrain) buildTerrain();
+  mctx.imageSmoothingEnabled = false;
+  mctx.drawImage(terrain, 0, 0);
+  if (!G) return;
+  drawRoad(G.zones);
+  for (const z of G.zones) drawSite(z);
+  // fog over the uncharted north
+  mctx.fillStyle = "rgba(29,26,51,.55)";
+  for (const z of G.zones) if (z.state === "locked") {
+    const [x, y] = zxy(z);
+    for (let yy = -12; yy < 10; yy++) for (let xx = -16; xx < 16; xx++) if ((xx + yy) % 2 === 0) mctx.fillRect(x + xx, y + yy, 1, 1);
+  }
+  const active = G.zones.find((z) => z.state === "active");
+  const charted = G.zones.filter((z) => z.state !== "locked");
+  const here = active || charted[charted.length - 1];
+  if (active) {
+    const [x, y] = zxy(active);
+    const r = 9 + (reduced ? 0 : (tick % 10) / 3);
+    mctx.fillStyle = "rgba(255,179,71,.55)";
+    for (let a = 0; a < 32; a++) {
+      const t = (a / 32) * Math.PI * 2;
+      mctx.fillRect(Math.round(x + Math.cos(t) * r), Math.round(y + Math.sin(t) * r * 0.6), 1, 1);
+    }
+  }
+  if (here) {
+    const [x, y] = zxy(here);
+    const bob = reduced ? 0 : (tick % 8 < 4 ? 0 : -1);
+    drawSprite(mctx, HERO, x - 18, y - 14 + bob, 1);
+  }
+}
+
+function animate() {
+  tick++;
+  drawMap();
+  setTimeout(() => requestAnimationFrame(animate), 125);
+}
+
+/* ---------- Rendering ---------- */
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => n.toLocaleString("en-US");
+function el(tag, attrs = {}, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") e.className = v;
+    else if (k === "text") e.textContent = v;
+    else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
+    else e.setAttribute(k, v);
+  }
+  for (const k of kids) if (k != null) e.append(k);
+  return e;
+}
+
+function renderHud() {
+  $("rank").innerHTML = "";
+  $("rank").append(`Level ${G.level}: ${G.title}`, el("small", { text: `${fmt(G.xp)} XP total` }));
+  const span = G.next ? G.next.xp - G.floor : 1;
+  const into = G.next ? G.xp - G.floor : 1;
+  $("xpfill").style.width = `${Math.min(100, (into / span) * 100)}%`;
+  $("xptext").innerHTML = "";
+  $("xptext").append(el("span", { text: G.next ? `${fmt(G.xp)} / ${fmt(G.next.xp)} XP to ${G.next.title}` : `${fmt(G.xp)} XP, top rank` }));
+  $("xpbar").setAttribute("aria-valuenow", String(G.xp));
+  $("xpbar").setAttribute("aria-valuemax", String(G.next ? G.next.xp : G.xp));
+  const s = $("streak"); s.innerHTML = "";
+  const fc = el("canvas"); spriteCanvas(fc, FLAME, F.git.streak ? {} : { mono: "#5c4b72" });
+  s.append(fc, `${F.git.streak} night${F.git.streak === 1 ? "" : "s"}`);
+  $("mute").textContent = muted ? "Sound off" : "Sound on";
+  $("mute").setAttribute("aria-pressed", String(muted));
+}
+
+function renderPins() {
+  const pins = $("pins"); pins.innerHTML = "";
+  for (const z of G.zones) {
+    const b = el("button", { class: "zone-pin", "data-state": z.state, "aria-pressed": String(selected === z.id), text: z.name });
+    b.style.left = `${z.pos[0] * 100}%`; b.style.top = `${z.pos[1] * 100}%`;
+    b.addEventListener("click", () => { selected = z.id; renderPins(); renderZone(); });
+    pins.append(b);
+  }
+}
+
+function renderZone() {
+  const z = G.zones.find((x) => x.id === selected);
+  const p = $("zone"); p.innerHTML = "";
+  p.append(el("h2", { text: z.name }), el("p", { class: "sub", text: z.milestone }));
+  if (z.state === "locked") {
+    p.append(el("p", { class: "locked-note", text: "Not charted yet. This zone opens when its milestone is set up." }));
+    return;
+  }
+  if (F.compile_error) {
+    p.append(el("div", { class: "curse" }, el("b", { text: "Your code doesn't compile" }),
+      el("p", { text: "Fix this first. Then press Rescan." }), el("pre", { class: "error", text: F.compile_error })));
+  }
+  if (z.curse) {
+    p.append(el("div", { class: "curse" + (z.cursed ? "" : " lifted") },
+      el("b", { text: z.cursed ? z.curse.name : z.curse.name + ", lifted" }),
+      el("p", { text: z.cursed ? z.curse.lore : "The bell rings on time. Every reading maps to the right clock time." })));
+  }
+  const ul = el("ul", { class: "quests" });
+  for (const q of z.quests) {
+    const li = el("li", { class: "quest" + (q.done ? " done" : "") },
+      el("span", { class: "mark", "aria-hidden": "true" }),
+      el("span", {}, el("span", { class: "name", text: q.name }), el("span", { class: "sr", text: q.done ? " (done)" : "" })),
+      el("span", { class: "xpv", text: `${q.xp} XP` }));
+    const brief = briefFor(q);
+    if (brief) li.append(el("details", {}, el("summary", { text: "Briefing" }), el("pre", { class: "brief", text: brief })));
+    ul.append(li);
+  }
+  p.append(ul);
+
+  const passed = z.checks.filter((c) => c.result.state === "pass").length;
+  const boss = el("div", { class: "boss" + (z.bossDown ? " down" : "") });
+  const bc = el("canvas"); spriteCanvas(bc, BOSSES[z.id], z.bossDown ? { mono: "#5c4b72" } : {});
+  const pips = el("div", { class: "pips", "aria-label": `${z.checks.length - passed} of ${z.checks.length} hit points left` });
+  z.checks.forEach((c) => pips.append(el("span", { class: "pip" + (c.result.state === "pass" ? " hit" : "") })));
+  const fightBtn = el("button", { class: "btn", text: z.bossDown ? "Rematch" : "Fight" });
+  fightBtn.addEventListener("click", () => fight(z.id));
+  boss.append(bc, el("div", {},
+    el("h3", { text: z.bossDown ? `${z.boss.name}, defeated` : z.boss.name }),
+    el("p", { text: z.boss.lore }), pips, fightBtn));
+  p.append(boss);
+}
+
+function copyable(cmd) {
+  const b = el("button", { class: "copy", text: "Copy" });
+  b.addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(cmd); b.textContent = "Copied"; } catch { b.textContent = "Select and copy"; }
+    setTimeout(() => (b.textContent = "Copy"), 1500);
+  });
+  return el("div", { class: "cmd" }, el("code", { class: "chip", text: cmd }), b);
+}
+
+function renderNext() {
+  const n = $("next"); n.innerHTML = "";
+  n.append(el("span", { class: "label", text: "Next quest" }));
+  let body, side = null;
+  if (F.compile_error) {
+    body = el("div", {}, el("div", { class: "what", text: "Get the code compiling again" }),
+      el("div", { class: "why", text: "Nothing can be checked until it builds. The first error is in the zone panel." }));
+  } else {
+    const z = G.zones.find((x) => x.state === "active");
+    const q = z && z.quests.find((x) => !x.done && x.part);
+    const other = z && z.quests.find((x) => !x.done);
+    if (q) {
+      const cmd = commandFor(q);
+      body = el("div", {}, el("div", { class: "what", text: `${q.name}, worth ${q.xp} XP` }),
+        el("div", { class: "why", text: `YOUR PART ${q.part} in ${z.name}. Open the briefing for the steps.` }),
+        cmd ? copyable(cmd) : null);
+    } else if (z && !z.bossDown) {
+      body = el("div", {}, el("div", { class: "what", text: `Defeat ${z.boss.name}` }),
+        el("div", { class: "why", text: "All the quests here are done. Fight the boss to run the final checks." }));
+      side = el("button", { class: "btn", text: "Fight" }); side.addEventListener("click", () => fight(z.id));
+    } else if (other) {
+      body = el("div", {}, el("div", { class: "what", text: `${other.name}, worth ${other.xp} XP` }),
+        el("div", { class: "why", text: other.brief || "" }));
+    } else {
+      body = el("div", {}, el("div", { class: "what", text: "Every charted zone is cleared" }),
+        el("div", { class: "why", text: "Ask Claude to set up the next milestone, and a new zone opens on the map." }));
+    }
+  }
+  n.append(body, side || el("span"));
+}
+
+function renderTabs() {
+  const fresh = new Set(store.get("fresh", []));
+  const grid = $("tab-ach"); grid.innerHTML = "";
+  for (const a of G.achievements) {
+    const c = el("canvas"); spriteCanvas(c, MEDAL, a.got ? {} : { mono: "#5c4b72" });
+    grid.append(el("div", { class: "ach" + (a.got ? "" : " locked") + (fresh.has(a.id) ? " fresh" : "") },
+      c, el("div", {}, el("b", { text: a.name }), el("span", { text: a.got ? a.desc : `Locked. ${a.desc}` }))));
+  }
+  const lg = $("tab-legends"); lg.innerHTML = "";
+  for (const l of Q.legends) {
+    const open = G.level >= l.level;
+    lg.append(el("li", { class: open ? "" : "sealed" }, el("span", { text: l.name }),
+      el("span", { class: "lv", text: open ? "Available" : `Opens at level ${l.level}` })));
+  }
+  const cm = $("tab-commits"); cm.innerHTML = "";
+  if (!F.git.mine.length) cm.append(el("li", {}, el("span", { text: "No commits of yours yet." })));
+  for (const c of F.git.mine) {
+    const d = new Date(c.date);
+    cm.append(el("li", {}, el("span", { text: c.subject }),
+      el("time", { datetime: c.date, text: d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }) })));
+  }
+}
+
+function renderAll() {
+  G = compute();
+  if (!selected || !G.zones.some((z) => z.id === selected)) {
+    selected = (G.zones.find((z) => z.state === "active") || G.zones[0]).id;
+  }
+  renderHud(); renderPins(); renderZone(); renderNext(); renderTabs();
+}
+
+/* ---------- Rewards ---------- */
+function toast(title, text, cls = "") {
+  // a modal dialog sits in the top layer, so toasts move inside it while it's open
+  const box = $("toasts"), dlg = $("fight");
+  const host = dlg.open ? dlg : document.body;
+  if (box.parentElement !== host) host.append(box);
+  const t = el("div", { class: "toast " + cls }, el("b", { text: title }), el("span", { text }));
+  box.append(t);
+  setTimeout(() => t.remove(), 6500);
+}
+function reward() {
+  const prevXp = store.get("xp", null);
+  const prevAch = new Set(store.get("ach", []));
+  const now = G.achievements.filter((a) => a.got).map((a) => a.id);
+  if (prevXp !== null) {
+    const newOnes = now.filter((id) => !prevAch.has(id));
+    newOnes.forEach((id, i) => setTimeout(() => {
+      const a = G.achievements.find((x) => x.id === id);
+      toast(`Achievement: ${a.name}`, `${a.desc} +${Q.achievement_xp} XP`); sfx.unlock();
+    }, 400 + i * 700));
+    if (newOnes.length) store.set("fresh", newOnes);
+    let prevLevel = 1; Q.levels.forEach((l, i) => { if (prevXp >= l.xp) prevLevel = i + 1; });
+    if (G.level > prevLevel) setTimeout(() => { toast(`Level ${G.level}: ${G.title}`, "You ranked up.", "level"); sfx.level(); }, 200);
+    else if (G.xp > prevXp) toast(`+${fmt(G.xp - prevXp)} XP`, "Verified by your tests.");
+  }
+  store.set("xp", G.xp); store.set("ach", now);
+}
+
+/* ---------- Fight ---------- */
+const scope = $("scope"), sctx = scope.getContext("2d");
+function drawScope(trace, total, noise = false) {
+  const W = scope.width, H = scope.height;
+  sctx.fillStyle = "#15122a"; sctx.fillRect(0, 0, W, H);
+  sctx.fillStyle = "#2a2347";
+  for (let x = 0; x < W; x += 20) sctx.fillRect(x, 0, 1, H);
+  for (let y = 0; y < H; y += 20) sctx.fillRect(0, y, W, 1);
+  const top = 12, bottom = H - 12;
+  const yOf = (hp) => Math.round(bottom - ((bottom - top) * hp) / Math.max(total, 1));
+  const pts = [];
+  if (noise) {
+    for (let x = 0; x < W; x += 2) pts.push([x, yOf(total) + Math.round(Math.random() * 6 - 3)]);
+  } else {
+    const seg = W / Math.max(trace.length, 1);
+    trace.forEach((hp, i) => { pts.push([Math.round(i * seg), yOf(hp)]); pts.push([Math.round((i + 1) * seg), yOf(hp)]); });
+  }
+  for (const [w, col] of [[5, "rgba(255,179,71,.25)"], [2, "#ffb347"]]) {
+    sctx.strokeStyle = col; sctx.lineWidth = w; sctx.beginPath();
+    pts.forEach(([x, y], i) => (i ? sctx.lineTo(x, y) : sctx.moveTo(x, y)));
+    sctx.stroke();
+  }
+}
+
+let fighting = false;
+async function fight(zoneId) {
+  if (fighting) return;
+  fighting = true;
+  const zq = Q.zones.find((z) => z.id === zoneId);
+  const dlg = $("fight");
+  $("fight-title").textContent = zq.boss.name;
+  spriteCanvas($("bossbig"), BOSSES[zoneId]);
+  spriteCanvas($("herobig"), HERO);
+  $("log").innerHTML = "";
+  $("verdict").textContent = "Running your tests…";
+  $("verdict-act").innerHTML = "";
+  $("scope-cap").textContent = "acquiring";
+  if (!dlg.open) dlg.showModal();
+  const total = zq.boss.checks.length;
+  let noiseOn = true;
+  (function noise() { if (!noiseOn) return; drawScope([], total, true); setTimeout(noise, 90); })();
+
+  try {
+    F = await (await fetch("/api/scan", { method: "POST" })).json();
+  } catch (e) {
+    noiseOn = false;
+    $("verdict").textContent = "Couldn't reach the game server. Is serve.py still running?";
+    fighting = false; return;
+  }
+  noiseOn = false;
+  const before = G;
+  G = compute();
+  const z = G.zones.find((x) => x.id === zoneId);
+
+  if (F.compile_error) {
+    drawScope([total], total);
+    $("log").append(el("li", { class: "miss" }, el("span", { text: "Your code doesn't compile, so the boss can't be fought yet." }),
+      el("pre", { text: F.compile_error })));
+    $("verdict").textContent = `${zq.boss.name} waits for a build that compiles.`;
+    sfx.miss(); renderAll(); reward(); fighting = false; return;
+  }
+
+  let hp = total; const trace = [hp]; drawScope(trace, total);
+  $("scope-cap").textContent = `${hp} of ${total}`;
+  let firstFail = null;
+  for (const c of z.checks) {
+    await sleep(520);
+    const r = c.result;
+    if (r.state === "pass") {
+      hp -= 1; trace.push(hp); sfx.hit();
+      $("bossbig").classList.remove("flash"); void $("bossbig").offsetWidth; $("bossbig").classList.add("flash");
+      $("log").append(el("li", { class: "hit", text: `Hit: ${c.label}` }));
+    } else if (r.state === "wait") {
+      trace.push(hp);
+      $("log").append(el("li", { class: "wait", text: `Not yet: ${c.label}. ${r.message}` }));
+    } else {
+      trace.push(hp); sfx.miss(); firstFail = firstFail || c;
+      $("stage").classList.remove("shake"); void $("stage").offsetWidth; $("stage").classList.add("shake");
+      $("log").append(el("li", { class: "miss" }, el("span", { text: `Blocked: ${c.label}` }), r.message ? el("pre", { text: r.message }) : null));
+    }
+    drawScope(trace, total);
+    $("scope-cap").textContent = `${hp} of ${total}`;
+    $("log").lastChild.scrollIntoView({ block: "nearest" });
+  }
+  await sleep(450);
+  if (hp === 0) {
+    $("scope-cap").textContent = "signal lost";
+    $("verdict").textContent = (before.zones.find((x) => x.id === zoneId).bossDown)
+      ? `${zq.boss.name} is still down. Rematch won.`
+      : `${zq.boss.name} is defeated. +${zq.boss.xp} XP`;
+    spriteCanvas($("bossbig"), BOSSES[zoneId], { mono: "#5c4b72" });
+    sfx.win();
+  } else {
+    $("verdict").textContent = `${zq.boss.name} holds with ${hp} of ${total} hit points.`;
+    const q = z.quests.find((x) => !x.done && x.part && (x.verify.tests || []).some((t) =>
+      (firstFail && (firstFail.tests || []).includes(t))));
+    const cmd = q && commandFor(q);
+    if (cmd) $("verdict-act").append(el("div", { class: "why", text: `Work on ${q.name}, then fight again.` }), copyable(cmd));
+  }
+  renderAll(); reward();
+  fighting = false;
+}
+$("fight-close").addEventListener("click", () => $("fight").close());
+
+/* ---------- Wiring ---------- */
+document.querySelectorAll(".tab").forEach((t) => t.addEventListener("click", () => {
+  document.querySelectorAll(".tab").forEach((x) => x.setAttribute("aria-selected", String(x === t)));
+  for (const id of ["ach", "legends", "commits"]) $("tab-" + id).hidden = id !== t.dataset.tab;
+}));
+$("mute").addEventListener("click", () => { muted = !muted; store.set("muted", muted); renderHud(); });
+$("rescan").addEventListener("click", async () => {
+  const b = $("rescan"); b.disabled = true; b.textContent = "Scanning…";
+  try {
+    F = await (await fetch("/api/scan", { method: "POST" })).json();
+    renderAll(); reward();
+  } catch { toast("Couldn't reach the game server", "Is serve.py still running in WSL?"); }
+  b.disabled = false; b.textContent = "Rescan";
+});
+
+(async function start() {
+  buildTerrain(); drawMap(); animate();
+  try {
+    Q = await (await fetch("/quests.json")).json();
+    F = await (await fetch("/api/facts")).json();
+  } catch {
+    $("loading").querySelector("p").textContent = "Couldn't reach the game server.";
+    $("loading").querySelector("small").textContent = "Start it in WSL with: python3 game/serve.py";
+    return;
+  }
+  $("loading").remove();
+  renderAll(); reward();
+})();
+</script>
+</body>
+</html>
