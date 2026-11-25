@@ -125,9 +125,9 @@
           "verify": { "tests": ["recorder_first_reading_brings_headers", "recorder_later_readings_are_one_packet"] } },
         { "id": "p11", "part": 11, "name": "Listen live (record loop)", "xp": 150,
           "verify": { "tests": ["udp_records_live_readings"] } },
-        { "id": "field", "name": "Field run: stream the real model from Windows", "xp": 150,
+        { "id": "field", "name": "Field run: stream the real model live", "xp": 150,
           "verify": { "model_file": 1 },
-          "brief": "Record target/model.c10 from a live model run on the 4060. See SESSION-milestone5.md." }
+          "brief": "Record target/model.c10 from a live model run on the 4060: stream_confidence.py into ch10write --udp. See SESSION-milestone5.md." }
       ],
       "boss": {
         "name": "The Phantom Packet",
@@ -155,7 +155,7 @@
     { "id": "leap", "name": "Leap year ready", "desc": "Set the leap-year bit right.", "verify": { "tests": ["time_packet_sets_leap_year_bit"] } },
     { "id": "curse_breaker", "name": "Curse breaker", "desc": "Fixed the 1.996-second clock offset.", "verify": { "tests": ["recorder_first_reading_brings_headers", "recorder_later_readings_are_one_packet"] } },
     { "id": "byte_perfect", "name": "Byte-perfect", "desc": "Live recording matched CSV mode exactly.", "verify": { "e2e": "byte_perfect" } },
-    { "id": "field_recording", "name": "Field recording", "desc": "Recorded a live model run from Windows.", "verify": { "model_file": 1 } },
+    { "id": "field_recording", "name": "Field recording", "desc": "Recorded a live model run.", "verify": { "model_file": 1 } },
     { "id": "long_haul", "name": "Long haul", "desc": "A live recording with 150 or more readings.", "verify": { "model_file": 150 } },
     { "id": "clean_build", "name": "Clean build", "desc": "ch10write builds with zero warnings.", "verify": { "warnings_zero": true } },
     { "id": "shipped", "name": "Shipped", "desc": "Your latest commit is on GitHub.", "verify": { "pushed": true } },
