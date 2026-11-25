@@ -327,14 +327,17 @@ fn build_time_packet(t_ns: u64, seq: u8, rtc: u64) -> Vec<u8> {
 fn parse_datagram(buf: &[u8]) -> Option<Reading> {
     // YOUR PART 9: the reverse of what you did for packets: bytes -> numbers.
     // 1. if buf.len() != DATAGRAM_BYTES, return None
-    // 2. read each field with from_le_bytes, e.g.
-    //      u32::from_le_bytes(buf[0..4].try_into().unwrap())
-    //    (try_into turns a 4-byte slice into a [u8; 4]; same as the
-    //     [b[0], b[1], b[2], b[3]] style in your tests)
-    // 3. return Some(Reading { index, t_ns, entropy, top_prob })
+    if buf.len() != DATAGRAM_BYTES {
+        return None;
+    }
+    let index = u32::from_le_bytes(buf[0..4].try_into().unwrap());
+    let t_ns = u64::from_le_bytes(buf[4..12].try_into().unwrap());
+    let entropy = f32::from_le_bytes(buf[12..16].try_into().unwrap());
+    let top_prob = f32::from_le_bytes(buf[16..20].try_into().unwrap());
+    return Some(Reading { index, t_ns, entropy, top_prob });
     //
     // Done when: cargo test --bin ch10write datagram_
-    todo!("parse_datagram")
+    //todo!("parse_datagram")
 }
 
 /// Turns readings into Ch10 bytes one at a time, the way a live recorder does.
@@ -353,6 +356,13 @@ impl Recorder {
     /// TMATS and time packets; every reading after that is one packet.
     fn packets_for(&mut self, r: &Reading) -> Vec<u8> {
         // YOUR PART 10: your milestone 4 main logic, one reading at a time.
+        let mut out = Vec::new();
+        if self.anchor_ns.is_none() {
+            let a = r.t_ns / 1_000_000_000 * 1_000_000_000; // round down to whole second
+            self.anchor_ns = Some(a);
+            out.extend_from_slice(&build_tmats_packet(TMATS, 0, 0));
+            out.extend_from_slice(&build_time_packet(a, 0, 0));
+        } 
         // 1. let mut out = Vec::new();
         // 2. if self.anchor_ns.is_none() {   (this is the first reading)
         //        a = r.t_ns rounded DOWN to a whole second
@@ -360,6 +370,11 @@ impl Recorder {
         //        append build_tmats_packet(TMATS, 0, 0) to out
         //        append build_time_packet(a, 0, 0) to out    <- RTC 0 = the anchor
         //    }
+        let anchor = self.anchor_ns.unwrap();
+        let rtc = rtc_from_ns(r.t_ns, anchor);
+        out.extend_from_slice(&build_confidence_packet(r, self.seq, rtc));
+        self.seq = self.seq.wrapping_add(1);
+        return out;
         // 3. let anchor = self.anchor_ns.unwrap();
         // 4. rtc = rtc_from_ns(r.t_ns, anchor)    <- count from the ANCHOR, not the first token
         // 5. append build_confidence_packet(r, self.seq, rtc); then
@@ -367,7 +382,7 @@ impl Recorder {
         // 6. return out
         //
         // Done when: cargo test --bin ch10write recorder_
-        todo!("packets_for")
+        //todo!("packets_for")
     }
 }
 
@@ -408,6 +423,22 @@ fn record(sock: &UdpSocket, out: &str) -> usize {
 
         // YOUR PART 11: handle one datagram.
         // 1. let Some(r) = parse_datagram(&buf[..n]) else { warn and continue };
+        let Some(r) = parse_datagram(&buf[..n]) else {
+            eprintln!("warning: bad datagram, ignoring");
+            continue;
+        };
+        if r.index != expected {
+            eprintln!("gap: expected reading {expected}, got {}", r.index);
+            expected = r.index + 1;
+        }
+        file.write_all(&rec.packets_for(&r)).expect("write failed");
+        if count == 0 {
+            print_anchor(rec.anchor_ns.unwrap());
+            sock.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+        }
+        eprintln!("rx {:4}  entropy {:5.2}  top {:4.2}", r.index, r.entropy, r.top_prob);
+        count += 1;
+
         // 2. if r.index != expected, eprintln!("gap: expected reading {expected}, got {}", r.index)
         //    (UDP can drop datagrams, and a recorder should say so), then expected = r.index + 1
         // 3. file.write_all(&rec.packets_for(&r)).expect("write failed");
