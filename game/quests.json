@@ -1,55 +1,157 @@
 {
   "title": "Range Quest",
   "levels": [
-    { "xp": 0,    "title": "Signal Seeker" },
-    { "xp": 300,  "title": "Sensor Tinkerer" },
-    { "xp": 750,  "title": "Packet Smith" },
-    { "xp": 1200, "title": "Data Wrangler" },
-    { "xp": 1700, "title": "Time Lord" },
-    { "xp": 2300, "title": "Live Wire" },
-    { "xp": 3000, "title": "Ground Controller" },
-    { "xp": 3800, "title": "Calibrator" },
-    { "xp": 4700, "title": "Range Legend" }
+    {
+      "xp": 0,
+      "title": "Signal Seeker"
+    },
+    {
+      "xp": 300,
+      "title": "Sensor Tinkerer"
+    },
+    {
+      "xp": 750,
+      "title": "Packet Smith"
+    },
+    {
+      "xp": 1200,
+      "title": "Data Wrangler"
+    },
+    {
+      "xp": 1700,
+      "title": "Time Lord"
+    },
+    {
+      "xp": 2300,
+      "title": "Live Wire"
+    },
+    {
+      "xp": 3400,
+      "title": "Ground Controller"
+    },
+    {
+      "xp": 4300,
+      "title": "Calibrator"
+    },
+    {
+      "xp": 5300,
+      "title": "Probe Master"
+    },
+    {
+      "xp": 6200,
+      "title": "Decom Wizard"
+    },
+    {
+      "xp": 6900,
+      "title": "Range Legend"
+    }
   ],
   "zones": [
     {
       "id": "m1",
       "name": "Signal Flats",
       "milestone": "Milestone 1: the confidence channel",
-      "pos": [0.10, 0.70],
+      "pos": [
+        0.1,
+        0.7
+      ],
       "quests": [
-        { "id": "sensor", "name": "Build the confidence sensor", "xp": 150,
-          "verify": { "files": ["confidence_sample.csv"] },
-          "brief": "Put a sensor inside the model: entropy and top-token probability for every token, timestamped and saved to CSV." }
+        {
+          "id": "sensor",
+          "name": "Build the confidence sensor",
+          "xp": 150,
+          "verify": {
+            "files": [
+              "confidence_sample.csv"
+            ]
+          },
+          "brief": "Put a sensor inside the model: entropy and top-token probability for every token, timestamped and saved to CSV."
+        }
       ],
       "boss": {
         "name": "The Hallucinating Oracle",
         "lore": "Swore IRIG stood for \"International Radiometric Infrared Geodetic.\" Your entropy channel caught it guessing at token 6.",
         "xp": 200,
-        "checks": [ { "label": "Confidence CSV recorded", "files": ["confidence_sample.csv"] } ]
+        "checks": [
+          {
+            "label": "Confidence CSV recorded",
+            "files": [
+              "confidence_sample.csv"
+            ]
+          }
+        ]
       }
     },
     {
       "id": "m2",
       "name": "Packet Forge",
       "milestone": "Milestone 2: the TMATS writer",
-      "pos": [0.28, 0.52],
+      "pos": [
+        0.28,
+        0.52
+      ],
       "quests": [
-        { "id": "p1", "part": 1, "name": "Forge the header (build_header)", "xp": 100,
-          "verify": { "tests": ["builds_known_header"] } },
-        { "id": "p2", "part": 2, "name": "Wrap the TMATS (build_tmats_packet)", "xp": 150,
-          "verify": { "tests": ["pads_to_32_bit_boundary", "length_fields_match_packet", "header_checksum_is_valid", "tmats_text_round_trips"] } }
+        {
+          "id": "p1",
+          "part": 1,
+          "name": "Forge the header (build_header)",
+          "xp": 100,
+          "verify": {
+            "tests": [
+              "builds_known_header"
+            ]
+          }
+        },
+        {
+          "id": "p2",
+          "part": 2,
+          "name": "Wrap the TMATS (build_tmats_packet)",
+          "xp": 150,
+          "verify": {
+            "tests": [
+              "pads_to_32_bit_boundary",
+              "length_fields_match_packet",
+              "header_checksum_is_valid",
+              "tmats_text_round_trips"
+            ]
+          }
+        }
       ],
       "boss": {
         "name": "The Checksum Golem",
         "lore": "Made of 24 bytes and suspicion. It only falls for a header a real recorder would accept.",
         "xp": 200,
         "checks": [
-          { "label": "Header matches discrete.c10", "tests": ["builds_known_header"] },
-          { "label": "Padding lands on 32 bits", "tests": ["pads_to_32_bit_boundary"] },
-          { "label": "Length fields agree", "tests": ["length_fields_match_packet"] },
-          { "label": "Checksum holds", "tests": ["header_checksum_is_valid"] },
-          { "label": "TMATS text survives the trip", "tests": ["tmats_text_round_trips"] }
+          {
+            "label": "Header matches discrete.c10",
+            "tests": [
+              "builds_known_header"
+            ]
+          },
+          {
+            "label": "Padding lands on 32 bits",
+            "tests": [
+              "pads_to_32_bit_boundary"
+            ]
+          },
+          {
+            "label": "Length fields agree",
+            "tests": [
+              "length_fields_match_packet"
+            ]
+          },
+          {
+            "label": "Checksum holds",
+            "tests": [
+              "header_checksum_is_valid"
+            ]
+          },
+          {
+            "label": "TMATS text survives the trip",
+            "tests": [
+              "tmats_text_round_trips"
+            ]
+          }
         ]
       }
     },
@@ -57,25 +159,74 @@
       "id": "m3",
       "name": "Telemetry Wash",
       "milestone": "Milestone 3: confidence readings into Ch10",
-      "pos": [0.46, 0.66],
+      "pos": [
+        0.46,
+        0.66
+      ],
       "quests": [
-        { "id": "p3", "part": 3, "name": "Count the ticks (rtc_from_ns)", "xp": 50,
-          "verify": { "tests": ["rtc_starts_at_zero", "rtc_converts_ns_to_10mhz_ticks"] } },
-        { "id": "p4", "part": 4, "name": "Pack a reading (build_confidence_packet)", "xp": 100,
-          "verify": { "tests": ["confidence_packet_layout"] } },
-        { "id": "p5", "part": 5, "name": "Write every reading", "xp": 100,
-          "verify": { "commit": "Milestone 3" },
-          "brief": "Loop over every reading and append its packet. Verified by your Milestone 3 commit." }
+        {
+          "id": "p3",
+          "part": 3,
+          "name": "Count the ticks (rtc_from_ns)",
+          "xp": 50,
+          "verify": {
+            "tests": [
+              "rtc_starts_at_zero",
+              "rtc_converts_ns_to_10mhz_ticks"
+            ]
+          }
+        },
+        {
+          "id": "p4",
+          "part": 4,
+          "name": "Pack a reading (build_confidence_packet)",
+          "xp": 100,
+          "verify": {
+            "tests": [
+              "confidence_packet_layout"
+            ]
+          }
+        },
+        {
+          "id": "p5",
+          "part": 5,
+          "name": "Write every reading",
+          "xp": 100,
+          "verify": {
+            "commit": "Milestone 3"
+          },
+          "brief": "Loop over every reading and append its packet. Verified by your Milestone 3 commit."
+        }
       ],
       "boss": {
         "name": "The Byte Bandit",
         "lore": "Skims a byte here and there and hopes nobody counts. Your tests count.",
         "xp": 200,
         "checks": [
-          { "label": "Sample CSV reads cleanly", "tests": ["reads_sample_csv"] },
-          { "label": "RTC starts at zero", "tests": ["rtc_starts_at_zero"] },
-          { "label": "Nanoseconds become 10 MHz ticks", "tests": ["rtc_converts_ns_to_10mhz_ticks"] },
-          { "label": "Packet layout is exact", "tests": ["confidence_packet_layout"] }
+          {
+            "label": "Sample CSV reads cleanly",
+            "tests": [
+              "reads_sample_csv"
+            ]
+          },
+          {
+            "label": "RTC starts at zero",
+            "tests": [
+              "rtc_starts_at_zero"
+            ]
+          },
+          {
+            "label": "Nanoseconds become 10 MHz ticks",
+            "tests": [
+              "rtc_converts_ns_to_10mhz_ticks"
+            ]
+          },
+          {
+            "label": "Packet layout is exact",
+            "tests": [
+              "confidence_packet_layout"
+            ]
+          }
         ]
       }
     },
@@ -83,33 +234,104 @@
       "id": "m4",
       "name": "Clock Tower",
       "milestone": "Milestone 4: the time packet",
-      "pos": [0.62, 0.40],
+      "pos": [
+        0.62,
+        0.4
+      ],
       "quests": [
-        { "id": "p6", "part": 6, "name": "Speak BCD (bcd_doy_words)", "xp": 150,
-          "verify": { "tests": ["bcd_matches_discrete_c10", "bcd_matches_event_c10", "bcd_packs_milliseconds"] } },
-        { "id": "p7", "part": 7, "name": "Ring the bell (build_time_packet)", "xp": 100,
-          "verify": { "tests": ["time_packet_layout", "time_packet_sets_leap_year_bit"] } },
-        { "id": "p8", "part": 8, "name": "Anchor the clock", "xp": 50,
-          "verify": { "commit": "Milestone 4" },
-          "brief": "Anchor RTC 0 to a whole second. Verified by your Milestone 4 commit, but see the curse." }
+        {
+          "id": "p6",
+          "part": 6,
+          "name": "Speak BCD (bcd_doy_words)",
+          "xp": 150,
+          "verify": {
+            "tests": [
+              "bcd_matches_discrete_c10",
+              "bcd_matches_event_c10",
+              "bcd_packs_milliseconds"
+            ]
+          }
+        },
+        {
+          "id": "p7",
+          "part": 7,
+          "name": "Ring the bell (build_time_packet)",
+          "xp": 100,
+          "verify": {
+            "tests": [
+              "time_packet_layout",
+              "time_packet_sets_leap_year_bit"
+            ]
+          }
+        },
+        {
+          "id": "p8",
+          "part": 8,
+          "name": "Anchor the clock",
+          "xp": 50,
+          "verify": {
+            "commit": "Milestone 4"
+          },
+          "brief": "Anchor RTC 0 to a whole second. Verified by your Milestone 4 commit, but see the curse."
+        }
       ],
       "curse": {
         "name": "The 1.996-second curse",
         "lore": "The bell rings early. Every reading in the milestone 4 file maps to a clock time 1.996 s too soon. Finish Recorder in Live Wire Pass to lift it.",
-        "lifted_by": { "tests": ["recorder_first_reading_brings_headers", "recorder_later_readings_are_one_packet"] }
+        "lifted_by": {
+          "tests": [
+            "recorder_first_reading_brings_headers",
+            "recorder_later_readings_are_one_packet"
+          ]
+        }
       },
       "boss": {
         "name": "The Chronomancer",
         "lore": "Keeps time in nibbles and never tells you which year it is.",
         "xp": 200,
         "checks": [
-          { "label": "Calendar math lands on day 324", "tests": ["utc_parts_known_time"] },
-          { "label": "Leap years sorted", "tests": ["leap_years"] },
-          { "label": "BCD matches discrete.c10", "tests": ["bcd_matches_discrete_c10"] },
-          { "label": "BCD matches event.c10", "tests": ["bcd_matches_event_c10"] },
-          { "label": "Milliseconds packed", "tests": ["bcd_packs_milliseconds"] },
-          { "label": "Time packet layout", "tests": ["time_packet_layout"] },
-          { "label": "Leap-year bit set", "tests": ["time_packet_sets_leap_year_bit"] }
+          {
+            "label": "Calendar math lands on day 324",
+            "tests": [
+              "utc_parts_known_time"
+            ]
+          },
+          {
+            "label": "Leap years sorted",
+            "tests": [
+              "leap_years"
+            ]
+          },
+          {
+            "label": "BCD matches discrete.c10",
+            "tests": [
+              "bcd_matches_discrete_c10"
+            ]
+          },
+          {
+            "label": "BCD matches event.c10",
+            "tests": [
+              "bcd_matches_event_c10"
+            ]
+          },
+          {
+            "label": "Milliseconds packed",
+            "tests": [
+              "bcd_packs_milliseconds"
+            ]
+          },
+          {
+            "label": "Time packet layout",
+            "tests": [
+              "time_packet_layout"
+            ]
+          },
+          {
+            "label": "Leap-year bit set",
+            "tests": [
+              "time_packet_sets_leap_year_bit"
+            ]
+          }
         ]
       }
     },
@@ -117,63 +339,834 @@
       "id": "m5",
       "name": "Live Wire Pass",
       "milestone": "Milestone 5: live streaming",
-      "pos": [0.80, 0.58],
+      "pos": [
+        0.8,
+        0.58
+      ],
       "quests": [
-        { "id": "p9", "part": 9, "name": "Read the wire (parse_datagram)", "xp": 75,
-          "verify": { "tests": ["datagram_parses", "datagram_wrong_length_is_rejected"] } },
-        { "id": "p10", "part": 10, "name": "Build the Recorder (packets_for)", "xp": 150,
-          "verify": { "tests": ["recorder_first_reading_brings_headers", "recorder_later_readings_are_one_packet"] } },
-        { "id": "p11", "part": 11, "name": "Listen live (record loop)", "xp": 150,
-          "verify": { "tests": ["udp_records_live_readings"] } },
-        { "id": "field", "name": "Field run: stream the real model live", "xp": 150,
-          "verify": { "model_file": 1 },
-          "brief": "Record target/model.c10 from a live model run on the 4060: stream_confidence.py into ch10write --udp. See SESSION-milestone5.md." }
+        {
+          "id": "p9",
+          "part": 9,
+          "name": "Read the wire (parse_datagram)",
+          "xp": 75,
+          "verify": {
+            "tests": [
+              "datagram_parses",
+              "datagram_wrong_length_is_rejected"
+            ]
+          }
+        },
+        {
+          "id": "p10",
+          "part": 10,
+          "name": "Build the Recorder (packets_for)",
+          "xp": 150,
+          "verify": {
+            "tests": [
+              "recorder_first_reading_brings_headers",
+              "recorder_later_readings_are_one_packet"
+            ]
+          }
+        },
+        {
+          "id": "p11",
+          "part": 11,
+          "name": "Listen live (record loop)",
+          "xp": 150,
+          "verify": {
+            "tests": [
+              "udp_records_live_readings"
+            ]
+          }
+        },
+        {
+          "id": "field",
+          "name": "Field run: stream the real model live",
+          "xp": 150,
+          "verify": {
+            "model_file": 1
+          },
+          "brief": "Record target/model.c10 from a live model run on the 4060: stream_confidence.py into ch10write --udp. See SESSION-milestone5.md."
+        }
       ],
       "boss": {
         "name": "The Phantom Packet",
         "lore": "Arrives out of order, or not at all, and swears it was there. Only a byte-perfect recording banishes it.",
         "xp": 250,
         "checks": [
-          { "label": "Datagrams parse", "tests": ["datagram_parses"] },
-          { "label": "Bad datagrams rejected", "tests": ["datagram_wrong_length_is_rejected"] },
-          { "label": "First reading brings TMATS and time", "tests": ["recorder_first_reading_brings_headers"] },
-          { "label": "Later readings are one packet", "tests": ["recorder_later_readings_are_one_packet"] },
-          { "label": "Live UDP round trip", "tests": ["udp_records_live_readings"] },
-          { "label": "Final blow: live recording is byte-identical to CSV mode", "e2e": "byte_perfect" }
+          {
+            "label": "Datagrams parse",
+            "tests": [
+              "datagram_parses"
+            ]
+          },
+          {
+            "label": "Bad datagrams rejected",
+            "tests": [
+              "datagram_wrong_length_is_rejected"
+            ]
+          },
+          {
+            "label": "First reading brings TMATS and time",
+            "tests": [
+              "recorder_first_reading_brings_headers"
+            ]
+          },
+          {
+            "label": "Later readings are one packet",
+            "tests": [
+              "recorder_later_readings_are_one_packet"
+            ]
+          },
+          {
+            "label": "Live UDP round trip",
+            "tests": [
+              "udp_records_live_readings"
+            ]
+          },
+          {
+            "label": "Final blow: live recording is byte-identical to CSV mode",
+            "e2e": "byte_perfect"
+          }
         ]
       }
     },
-    { "id": "m6", "name": "Ground Station Ridge", "milestone": "Coming up: the Fedora box as a separate ground station", "pos": [0.88, 0.34], "locked": true },
-    { "id": "m7", "name": "Calibration Caverns", "milestone": "Coming up: prompts with known answers", "pos": [0.80, 0.12], "locked": true },
-    { "id": "m8", "name": "Probe Depths", "milestone": "Coming up: the prompt-injection probe", "pos": [0.46, 0.20], "locked": true },
-    { "id": "m9", "name": "The PCM Citadel", "milestone": "Legendary: AI channels on a real ground-station display", "pos": [0.22, 0.14], "locked": true }
+    {
+      "id": "m6",
+      "name": "Ground Station Ridge",
+      "milestone": "Milestone 6: the live ground station",
+      "pos": [
+        0.88,
+        0.34
+      ],
+      "quests": [
+        {
+          "id": "p12",
+          "part": 12,
+          "name": "Wait for whole packets (next_packet)",
+          "xp": 150,
+          "verify": {
+            "tests": [
+              "tail_packet_reads_whole_file",
+              "tail_packet_waits_for_partial_packet",
+              "tail_packet_rejects_bad_sync_and_checksum"
+            ]
+          }
+        },
+        {
+          "id": "p13",
+          "part": 13,
+          "name": "Read a reading (decode_confidence)",
+          "xp": 75,
+          "verify": {
+            "tests": [
+              "tail_confidence_decodes_reading_6"
+            ]
+          }
+        },
+        {
+          "id": "p14",
+          "part": 14,
+          "name": "Read the clock (decode_time)",
+          "xp": 100,
+          "verify": {
+            "tests": [
+              "tail_time_decodes_anchor"
+            ]
+          }
+        },
+        {
+          "id": "p15",
+          "part": 15,
+          "name": "Draw the strip chart (strip_line)",
+          "xp": 50,
+          "verify": {
+            "tests": [
+              "tail_strip_line_draws_bars"
+            ]
+          }
+        },
+        {
+          "id": "station",
+          "name": "Range day: record on the Fedora box and bring the tape home",
+          "xp": 200,
+          "verify": {
+            "fact": "station.readings",
+            "min": 1
+          },
+          "brief": "Run ch10write --udp and ch10tail on the Fedora box, stream to it from WSL, then copy the recording back to target/station.c10. See SESSION-milestone6.md."
+        }
+      ],
+      "boss": {
+        "name": "The Dropout",
+        "xp": 250,
+        "lore": "Swallows the end of a packet and dares you to read it anyway. A patient ground station just waits.",
+        "checks": [
+          {
+            "label": "Reads every packet in your recording",
+            "tests": [
+              "tail_packet_reads_whole_file"
+            ]
+          },
+          {
+            "label": "Waits out a half-written packet",
+            "tests": [
+              "tail_packet_waits_for_partial_packet"
+            ]
+          },
+          {
+            "label": "Rejects bad sync and bad checksums",
+            "tests": [
+              "tail_packet_rejects_bad_sync_and_checksum"
+            ]
+          },
+          {
+            "label": "Decodes reading 6",
+            "tests": [
+              "tail_confidence_decodes_reading_6"
+            ]
+          },
+          {
+            "label": "Decodes the time anchor",
+            "tests": [
+              "tail_time_decodes_anchor"
+            ]
+          },
+          {
+            "label": "Draws the strip chart",
+            "tests": [
+              "tail_strip_line_draws_bars"
+            ]
+          },
+          {
+            "label": "Final blow: ch10tail reads all 58 readings and the clock",
+            "e2e": "tail_once"
+          }
+        ]
+      }
+    },
+    {
+      "id": "m7",
+      "name": "Calibration Caverns",
+      "milestone": "Milestone 7: calibrating the confidence channel",
+      "pos": [
+        0.8,
+        0.12
+      ],
+      "quests": [
+        {
+          "id": "p16",
+          "part": 16,
+          "name": "Separate right from wrong (auroc)",
+          "xp": 100,
+          "verify": {
+            "tests": [
+              "cal_auroc_textbook_example",
+              "cal_auroc_extremes_and_ties"
+            ]
+          }
+        },
+        {
+          "id": "p17",
+          "part": 17,
+          "name": "Bin the readings (reliability)",
+          "xp": 125,
+          "verify": {
+            "tests": [
+              "cal_reliability_bins_scores",
+              "cal_reliability_handles_identical_scores"
+            ]
+          }
+        },
+        {
+          "id": "p18",
+          "part": 18,
+          "name": "Draw the error bands (wilson)",
+          "xp": 75,
+          "verify": {
+            "tests": [
+              "cal_wilson_matches_reference"
+            ]
+          }
+        },
+        {
+          "id": "calrun",
+          "name": "Calibration run: 100+ real questions on the 4060",
+          "xp": 200,
+          "verify": {
+            "fact": "calib.rows",
+            "min": 100
+          },
+          "brief": "Run python/calibrate.py to write calib_results.csv in the repo root, then cargo run --bin ch10cal -- calib_results.csv. See SESSION-milestone7.md."
+        }
+      ],
+      "boss": {
+        "name": "The Overconfident Sage",
+        "xp": 250,
+        "lore": "Answers everything in the same calm voice. Your job is to find out when it's bluffing.",
+        "checks": [
+          {
+            "label": "AUROC on the textbook example",
+            "tests": [
+              "cal_auroc_textbook_example"
+            ]
+          },
+          {
+            "label": "AUROC extremes and ties",
+            "tests": [
+              "cal_auroc_extremes_and_ties"
+            ]
+          },
+          {
+            "label": "Reliability bins",
+            "tests": [
+              "cal_reliability_bins_scores"
+            ]
+          },
+          {
+            "label": "Identical scores don't divide by zero",
+            "tests": [
+              "cal_reliability_handles_identical_scores"
+            ]
+          },
+          {
+            "label": "Wilson error bands",
+            "tests": [
+              "cal_wilson_matches_reference"
+            ]
+          },
+          {
+            "label": "Final blow: ch10cal writes a full calibration report",
+            "e2e": "cal_report"
+          }
+        ]
+      }
+    },
+    {
+      "id": "m8",
+      "name": "Probe Depths",
+      "milestone": "Milestone 8: the prompt-injection probe",
+      "pos": [
+        0.46,
+        0.2
+      ],
+      "quests": [
+        {
+          "id": "p19",
+          "part": 19,
+          "name": "Squash it (sigmoid)",
+          "xp": 25,
+          "verify": {
+            "tests": [
+              "probe_sigmoid_basics"
+            ]
+          }
+        },
+        {
+          "id": "p20",
+          "part": 20,
+          "name": "Read the probe (score)",
+          "xp": 50,
+          "verify": {
+            "tests": [
+              "probe_score_known_value"
+            ]
+          }
+        },
+        {
+          "id": "p21",
+          "part": 21,
+          "name": "Teach it (train_epoch)",
+          "xp": 150,
+          "verify": {
+            "tests": [
+              "probe_learns_two_blobs"
+            ]
+          }
+        },
+        {
+          "id": "p22",
+          "part": 22,
+          "name": "Grade it (evaluate)",
+          "xp": 75,
+          "verify": {
+            "tests": [
+              "probe_confusion_counts"
+            ]
+          }
+        },
+        {
+          "id": "p23",
+          "part": 23,
+          "name": "Hear the probe (parse_probe_datagram)",
+          "xp": 50,
+          "verify": {
+            "tests": [
+              "chan2_datagram_parses"
+            ]
+          }
+        },
+        {
+          "id": "p24",
+          "part": 24,
+          "name": "Pack the probe (build_probe_packet)",
+          "xp": 75,
+          "verify": {
+            "tests": [
+              "chan2_packet_layout"
+            ]
+          }
+        },
+        {
+          "id": "p25",
+          "part": 25,
+          "name": "Record channel 2 (probe_packets_for)",
+          "xp": 100,
+          "verify": {
+            "tests": [
+              "chan2_recorder_probe_can_come_first"
+            ]
+          }
+        },
+        {
+          "id": "p26",
+          "part": 26,
+          "name": "Listen on both channels (record loop)",
+          "xp": 100,
+          "verify": {
+            "tests": [
+              "chan2_udp_records_both_channels"
+            ]
+          }
+        },
+        {
+          "id": "probefile",
+          "name": "Train a real probe on the model's hidden states",
+          "xp": 150,
+          "verify": {
+            "fact": "probe.valid"
+          },
+          "brief": "Run python/probe_features.py, then cargo run --release --bin probetrain -- features.bin probe.bin in the repo root."
+        },
+        {
+          "id": "caught",
+          "name": "Catch an injection live",
+          "xp": 200,
+          "verify": {
+            "fact": "probe_run.max_score",
+            "min": 0.5
+          },
+          "brief": "Record a stream_probe.py run into target/probe_run.c10 and watch channel 2 light up. See SESSION-milestone8.md."
+        }
+      ],
+      "boss": {
+        "name": "The Whispering Injector",
+        "xp": 300,
+        "lore": "Hides one sentence in an innocent document and waits for the model to obey it. A probe inside the model can hear it whisper.",
+        "checks": [
+          {
+            "label": "Sigmoid",
+            "tests": [
+              "probe_sigmoid_basics"
+            ]
+          },
+          {
+            "label": "Probe score",
+            "tests": [
+              "probe_score_known_value"
+            ]
+          },
+          {
+            "label": "Learns two clusters",
+            "tests": [
+              "probe_learns_two_blobs"
+            ]
+          },
+          {
+            "label": "Confusion counts",
+            "tests": [
+              "probe_confusion_counts"
+            ]
+          },
+          {
+            "label": "Probe datagrams parse",
+            "tests": [
+              "chan2_datagram_parses"
+            ]
+          },
+          {
+            "label": "Probe packet layout",
+            "tests": [
+              "chan2_packet_layout"
+            ]
+          },
+          {
+            "label": "A probe reading can start the recording",
+            "tests": [
+              "chan2_recorder_probe_can_come_first"
+            ]
+          },
+          {
+            "label": "Both channels recorded live",
+            "tests": [
+              "chan2_udp_records_both_channels"
+            ]
+          },
+          {
+            "label": "Final blow: probetrain learns a probe from scratch",
+            "e2e": "probe_train"
+          }
+        ]
+      }
+    },
+    {
+      "id": "m9",
+      "name": "The PCM Citadel",
+      "milestone": "Milestone 9: AI channels as PCM",
+      "pos": [
+        0.22,
+        0.14
+      ],
+      "quests": [
+        {
+          "id": "p27",
+          "part": 27,
+          "name": "Count it (to_counts)",
+          "xp": 50,
+          "verify": {
+            "tests": [
+              "pcm_counts_scale_and_clamp"
+            ]
+          }
+        },
+        {
+          "id": "p28",
+          "part": 28,
+          "name": "Commutate a frame (minor_frame)",
+          "xp": 75,
+          "verify": {
+            "tests": [
+              "pcm_minor_frame_layout"
+            ]
+          }
+        },
+        {
+          "id": "p29",
+          "part": 29,
+          "name": "Pack PCM like a recorder (build_pcm_packet)",
+          "xp": 150,
+          "verify": {
+            "tests": [
+              "pcm_packet_header_and_layout",
+              "pcm_packet_matches_real_recorder"
+            ]
+          }
+        },
+        {
+          "id": "p30",
+          "part": 30,
+          "name": "Decommutate (decom)",
+          "xp": 125,
+          "verify": {
+            "tests": [
+              "pcm_decom_round_trip"
+            ]
+          }
+        },
+        {
+          "id": "pcmfield",
+          "name": "Convert your own live recording to PCM",
+          "xp": 150,
+          "verify": {
+            "fact": "model_pcm.pcm_packets",
+            "min": 1
+          },
+          "brief": "cargo run --bin ch10pcm -- target/model.c10 target/model_pcm.c10, then read it back with ch10scan and --decom."
+        }
+      ],
+      "boss": {
+        "name": "The PCM Warden",
+        "xp": 350,
+        "lore": "Guards the gate to every ground station. It only lets in frames that sync, count and decommutate exactly.",
+        "checks": [
+          {
+            "label": "Counts scale and clamp",
+            "tests": [
+              "pcm_counts_scale_and_clamp"
+            ]
+          },
+          {
+            "label": "Minor frame layout",
+            "tests": [
+              "pcm_minor_frame_layout"
+            ]
+          },
+          {
+            "label": "Packet header and layout",
+            "tests": [
+              "pcm_packet_header_and_layout"
+            ]
+          },
+          {
+            "label": "Frames line up with pcm.c10's recorder",
+            "tests": [
+              "pcm_packet_matches_real_recorder"
+            ]
+          },
+          {
+            "label": "Decom round trip",
+            "tests": [
+              "pcm_decom_round_trip"
+            ]
+          },
+          {
+            "label": "Final blow: your PCM file decommutates back to the original readings",
+            "e2e": "pcm_round_trip"
+          }
+        ]
+      }
+    }
   ],
   "achievements": [
-    { "id": "first_light", "name": "First light", "desc": "Recorded your first AI telemetry channel.", "verify": { "files": ["confidence_sample.csv"] } },
-    { "id": "recorder_match", "name": "Real recorder match", "desc": "Your header matched discrete.c10 byte for byte.", "verify": { "tests": ["builds_known_header"] } },
-    { "id": "clockmaker", "name": "Clockmaker", "desc": "Your BCD matched two real recorders' time packets.", "verify": { "tests": ["bcd_matches_discrete_c10", "bcd_matches_event_c10"] } },
-    { "id": "leap", "name": "Leap year ready", "desc": "Set the leap-year bit right.", "verify": { "tests": ["time_packet_sets_leap_year_bit"] } },
-    { "id": "curse_breaker", "name": "Curse breaker", "desc": "Fixed the 1.996-second clock offset.", "verify": { "tests": ["recorder_first_reading_brings_headers", "recorder_later_readings_are_one_packet"] } },
-    { "id": "byte_perfect", "name": "Byte-perfect", "desc": "Live recording matched CSV mode exactly.", "verify": { "e2e": "byte_perfect" } },
-    { "id": "field_recording", "name": "Field recording", "desc": "Recorded a live model run.", "verify": { "model_file": 1 } },
-    { "id": "long_haul", "name": "Long haul", "desc": "A live recording with 150 or more readings.", "verify": { "model_file": 150 } },
-    { "id": "clean_build", "name": "Clean build", "desc": "ch10write builds with zero warnings.", "verify": { "warnings_zero": true } },
-    { "id": "shipped", "name": "Shipped", "desc": "Your latest commit is on GitHub.", "verify": { "pushed": true } },
-    { "id": "streak3", "name": "Three-night streak", "desc": "Committed on three weeknights in a row.", "verify": { "streak": 3 } },
-    { "id": "streak5", "name": "Full week", "desc": "Committed on five weeknights in a row.", "verify": { "streak": 5 } }
+    {
+      "id": "first_light",
+      "name": "First light",
+      "desc": "Recorded your first AI telemetry channel.",
+      "verify": {
+        "files": [
+          "confidence_sample.csv"
+        ]
+      }
+    },
+    {
+      "id": "recorder_match",
+      "name": "Real recorder match",
+      "desc": "Your header matched discrete.c10 byte for byte.",
+      "verify": {
+        "tests": [
+          "builds_known_header"
+        ]
+      }
+    },
+    {
+      "id": "clockmaker",
+      "name": "Clockmaker",
+      "desc": "Your BCD matched two real recorders' time packets.",
+      "verify": {
+        "tests": [
+          "bcd_matches_discrete_c10",
+          "bcd_matches_event_c10"
+        ]
+      }
+    },
+    {
+      "id": "leap",
+      "name": "Leap year ready",
+      "desc": "Set the leap-year bit right.",
+      "verify": {
+        "tests": [
+          "time_packet_sets_leap_year_bit"
+        ]
+      }
+    },
+    {
+      "id": "curse_breaker",
+      "name": "Curse breaker",
+      "desc": "Fixed the 1.996-second clock offset.",
+      "verify": {
+        "tests": [
+          "recorder_first_reading_brings_headers",
+          "recorder_later_readings_are_one_packet"
+        ]
+      }
+    },
+    {
+      "id": "byte_perfect",
+      "name": "Byte-perfect",
+      "desc": "Live recording matched CSV mode exactly.",
+      "verify": {
+        "e2e": "byte_perfect"
+      }
+    },
+    {
+      "id": "field_recording",
+      "name": "Field recording",
+      "desc": "Recorded a live model run.",
+      "verify": {
+        "model_file": 1
+      }
+    },
+    {
+      "id": "long_haul",
+      "name": "Long haul",
+      "desc": "A live recording with 150 or more readings.",
+      "verify": {
+        "model_file": 150
+      }
+    },
+    {
+      "id": "clean_build",
+      "name": "Clean build",
+      "desc": "ch10write builds with zero warnings.",
+      "verify": {
+        "warnings_zero": true
+      }
+    },
+    {
+      "id": "shipped",
+      "name": "Shipped",
+      "desc": "Your latest commit is on GitHub.",
+      "verify": {
+        "pushed": true
+      }
+    },
+    {
+      "id": "streak3",
+      "name": "Three-night streak",
+      "desc": "Committed on three weeknights in a row.",
+      "verify": {
+        "streak": 3
+      }
+    },
+    {
+      "id": "streak5",
+      "name": "Full week",
+      "desc": "Committed on five weeknights in a row.",
+      "verify": {
+        "streak": 5
+      }
+    },
+    {
+      "id": "patient",
+      "name": "Patient listener",
+      "desc": "Never reads half a packet.",
+      "verify": {
+        "tests": [
+          "tail_packet_waits_for_partial_packet"
+        ]
+      }
+    },
+    {
+      "id": "range_day",
+      "name": "Range day",
+      "desc": "Recorded on a separate ground station.",
+      "verify": {
+        "fact": "station.readings",
+        "min": 1
+      }
+    },
+    {
+      "id": "calibrated",
+      "name": "Calibrated",
+      "desc": "Graded the model on 100+ real questions.",
+      "verify": {
+        "fact": "calib.rows",
+        "min": 100
+      }
+    },
+    {
+      "id": "bluff",
+      "name": "Bluff detector",
+      "desc": "Your channel tells right answers from wrong ones (AUROC 0.70+).",
+      "verify": {
+        "fact": "calib.best_auroc",
+        "min": 0.7
+      }
+    },
+    {
+      "id": "probe_real",
+      "name": "Probe trained",
+      "desc": "Trained on the model's real hidden states.",
+      "verify": {
+        "fact": "probe.valid"
+      }
+    },
+    {
+      "id": "caught",
+      "name": "Caught in the act",
+      "desc": "The probe flagged a live injection.",
+      "verify": {
+        "fact": "probe_run.max_score",
+        "min": 0.5
+      }
+    },
+    {
+      "id": "speaks_pcm",
+      "name": "Speaks PCM",
+      "desc": "Your frames line up with a real recorder's.",
+      "verify": {
+        "tests": [
+          "pcm_packet_matches_real_recorder"
+        ]
+      }
+    },
+    {
+      "id": "citadel",
+      "name": "Citadel",
+      "desc": "Your own live recording, in PCM.",
+      "verify": {
+        "fact": "model_pcm.pcm_packets",
+        "min": 1
+      }
+    },
+    {
+      "id": "legend",
+      "name": "Range legend",
+      "desc": "Every boss on the range defeated.",
+      "verify": {
+        "all_bosses": true
+      }
+    }
   ],
   "achievement_xp": 50,
   "legends": [
-    { "name": "Fix the rtc column in ch10scan", "level": 5 },
-    { "name": "Merge the branch into main", "level": 5 },
-    { "name": "Check your files with an independent reader", "level": 5 },
-    { "name": "TMATS entries for the time channel", "level": 6 },
-    { "name": "A proper TMATS data channel instead of F0", "level": 6 },
-    { "name": "A time packet every second", "level": 6 },
-    { "name": "Try a bigger model", "level": 6 },
-    { "name": "The SPARK-proven kill switch", "level": 8 },
-    { "name": "Envelope expansion for agents", "level": 8 },
-    { "name": "The agent harness", "level": 8 },
-    { "name": "AI channels as PCM on a ground station", "level": 9 }
+    {
+      "name": "Fix the rtc column in ch10scan",
+      "level": 5
+    },
+    {
+      "name": "Merge the branch into main",
+      "level": 5
+    },
+    {
+      "name": "Check your files with an independent reader",
+      "level": 6
+    },
+    {
+      "name": "Move the shared Ch10 code into src/lib.rs",
+      "level": 7
+    },
+    {
+      "name": "TMATS entries for the time channel",
+      "level": 7
+    },
+    {
+      "name": "A time packet every second",
+      "level": 7
+    },
+    {
+      "name": "Try a bigger model",
+      "level": 8
+    },
+    {
+      "name": "D and C groups so a ground station auto-loads the PCM",
+      "level": 10
+    },
+    {
+      "name": "The SPARK-proven kill switch",
+      "level": 10
+    },
+    {
+      "name": "Envelope expansion for agents",
+      "level": 11
+    },
+    {
+      "name": "The agent harness",
+      "level": 11
+    },
+    {
+      "name": "Load model_pcm.c10 into real ground-station software",
+      "level": 11
+    }
   ]
 }

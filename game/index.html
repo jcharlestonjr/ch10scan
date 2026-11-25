@@ -334,6 +334,30 @@ const BOSSES = {
     "..vvkwwwwwwkvv..", "..vvvkwwwwkvvv..", ".vvvvvkkkkvvvvv.", ".vvvvvvvvvvvvvv.",
     "vvvvvvvvvvvvvvvv", "vvvvvvaavvvvvvvv", "vvvvvvvvvvvvvvvv", "kkkkkkkkkkkkkkkk",
   ],
+  m6: [ // the Dropout
+    "....vvvvvvvv....", "..vvwvwvvwvwvv..", ".vwvvwvwwvvwvwv.", ".vvwkkvwwvkkwvv.",
+    "vwvwkkwvvwkkwvwv", "vvwvvwvwwvwvvwvv", "vwvvwvp..pvwvvwv", ".vwvwp....pwvwv.",
+    ".vvwp......pwvv.", "..vp........pv..", "..p..........p..", "................",
+    "..v.v.v..v.v.v..", "...v.v....v.v...", "................", "................",
+  ],
+  m7: [ // the Overconfident Sage
+    ".......aa.......", "......aaaa......", ".....aavvaa.....", "....aavvvvaa....",
+    "...aaaaaaaaaa...", "....ssssssss....", "...ssskssksss...", "...ssssssssss...",
+    "....sspppss.....", "...wwwwwwwwww...", "..wwwwwwwwwwww..", "..wwvvwwwwvvww..",
+    "..wwwwwwwwwwww..", "...wwwwwwwwww...", "...vvvv..vvvv...", "...kkkk..kkkk...",
+  ],
+  m8: [ // the Whispering Injector
+    "..........ppp...", ".........pwwkp..", "........pwwwwp..", ".......pwwwpp...",
+    "......pwwp......", ".....pwwp.......", "....pwwp....g...", "...pwwp....g....",
+    "..pwwp....g.....", ".pwwwwpppg......", ".pwwwwwwwp......", "..pppppppp......",
+    "................", "...g.g.g.g......", "................", "................",
+  ],
+  m9: [ // the PCM Warden
+    "...kkkkkkkkkk...", "..kmmmmmmmmmmk..", "..kmaaaaaaaamk..", "..kmakkakkakmk..",
+    "..kmaaaaaaaamk..", "..kmmmmmmmmmmk..", ".kkkkkkkkkkkkkk.", "kvvvkvvvvvvkvvvk",
+    "kvvvkvwwwwvkvvvk", "kvvvkvwkkwvkvvvk", "kvvvkvwwwwvkvvvk", ".kk.kvvvvvvk.kk.",
+    "....kvvkkvvk....", "....kvvkkvvk....", "...kkvvkkvvkk...", "...kkkk..kkkk...",
+  ],
   m5: [ // the Phantom Packet
     "................", "..pppppppppppp..", ".pwwwwwwwwwwwwp.", ".pwpwwwwwwwwpwp.",
     ".pwwpwwwwwwpwwp.", ".pwwwpwwwwpwwwp.", ".pwwwwpppppwwwp.", ".pwwkwwwwwwkwwp.",
@@ -422,6 +446,10 @@ function verify(v) {
   if (v.warnings_zero && F.warnings !== 0) return false;
   if (v.pushed && !F.git.pushed) return false;
   if (v.streak && F.git.streak < v.streak) return false;
+  if (v.fact) {
+    const val = v.fact.split(".").reduce((o, k) => (o == null ? undefined : o[k]), F);
+    if (v.min !== undefined ? !(typeof val === "number" && val >= v.min) : !val) return false;
+  }
   return true;
 }
 function checkResult(chk) {
@@ -454,7 +482,8 @@ function compute() {
     else if (!activeSet) { z.state = "active"; activeSet = true; }
     else z.state = "ahead";
   }
-  const achievements = Q.achievements.map((a) => ({ ...a, got: verify(a.verify) }));
+  const allDown = zones.every((z) => z.state === "locked" || z.bossDown);
+  const achievements = Q.achievements.map((a) => ({ ...a, got: a.verify.all_bosses ? allDown : verify(a.verify) }));
   let xp = 0;
   for (const z of zones) {
     for (const q of z.quests) if (q.done) xp += q.xp;
@@ -576,6 +605,28 @@ function drawSite(z) {
       for (let i = 0; i < 14; i++) { const w = Math.floor(i / 3); c.fillRect(x - w, y - 12 + i, 1, 1); c.fillRect(x + w, y - 12 + i, 1, 1); }
       c.fillRect(x - 4, y + 1, 9, 1);
       if (z.state === "active" && tick % 6 < 3) { c.fillStyle = "#ffb347"; c.fillRect(x - 3, y - 14, 1, 1); c.fillRect(x + 3, y - 13, 1, 1); c.fillRect(x, y - 15, 1, 1); }
+      break;
+    case "m6": // ground station dish
+      c.fillStyle = base; c.fillRect(x - 6, y - 9, 13, 1); c.fillRect(x - 5, y - 8, 11, 1); c.fillRect(x - 3, y - 7, 7, 1);
+      c.fillRect(x, y - 6, 1, 7); c.fillRect(x - 3, y + 1, 7, 1); c.fillRect(x, y - 13, 1, 3);
+      c.fillStyle = "#2a2347"; c.fillRect(x - 4, y - 8, 9, 1);
+      break;
+    case "m7": // cave mouth
+      c.fillStyle = base; c.fillRect(x - 7, y - 6, 15, 8); c.fillRect(x - 5, y - 8, 11, 2); c.fillRect(x - 3, y - 9, 7, 1);
+      c.fillStyle = "#15122a"; c.fillRect(x - 3, y - 4, 7, 6); c.fillRect(x - 2, y - 5, 5, 1);
+      if (z.state === "active" && tick % 8 < 4) { c.fillStyle = "#ffb347"; c.fillRect(x - 1, y - 2, 1, 1); c.fillRect(x + 1, y - 2, 1, 1); }
+      break;
+    case "m8": // probe rig
+      c.fillStyle = base;
+      for (let i = 0; i < 14; i++) { const w = Math.floor((14 - i) / 4); c.fillRect(x - w, y - 12 + i, 1, 1); c.fillRect(x + w, y - 12 + i, 1, 1); }
+      c.fillRect(x - 3, y - 4, 7, 1); c.fillRect(x - 5, y + 1, 11, 1);
+      c.fillStyle = "#ff5e8a"; c.fillRect(x, y - 13, 1, 1);
+      break;
+    case "m9": // citadel
+      c.fillStyle = base; c.fillRect(x - 7, y - 6, 15, 8);
+      for (let i = -7; i <= 7; i += 2) c.fillRect(x + i, y - 8, 1, 2);
+      c.fillRect(x - 2, y - 13, 5, 7); c.fillRect(x - 2, y - 15, 1, 2); c.fillRect(x + 2, y - 15, 1, 2); c.fillRect(x, y - 15, 1, 2);
+      c.fillStyle = "#15122a"; c.fillRect(x - 1, y - 2, 3, 4); c.fillRect(x, y - 11, 1, 2);
       break;
   }
   if (z.state === "cleared") { // flag

@@ -36,6 +36,8 @@ const TIME_CHANNEL: u16 = 1; // time gets its own channel, like the sample files
 // Same FMT/SRC as ethernet.c10. Bit 8 = leap year, bit 9 = 0 means day-of-year format.
 const TIME_CSDW_RTC_INTERNAL: u32 = 0x30;
 const DATAGRAM_BYTES: usize = 20; // u32 index + u64 t_ns + f32 entropy + f32 top_prob
+const PROBE_BYTES: usize = 16; // u32 position + u64 t_ns + f32 score (milestone 8)
+const PROBE_CHANNEL: u16 = 2; // the injection probe gets its own channel
 
 // Minimal TMATS. The G\COM line documents the user-defined F0 record layout.
 const TMATS: &str = "G\\PN:AI-TELEMETRY;\n\
@@ -77,6 +79,13 @@ struct UtcParts {
 }
 
 // Copied from main.rs: your checksum, unchanged.
+/// One reading from the injection probe (milestone 8).
+struct ProbeReading {
+    pos: u32,   // token position in the whole sequence: the prompt first, then the answer
+    t_ns: u64,
+    score: f32, // 0..1: how much this token looks like part of an injection
+}
+
 fn header_checksum(h: &[u8]) -> u16 {
     let mut sum: u16 = 0;
     for i in (0..22).step_by(2) {
@@ -345,11 +354,12 @@ fn parse_datagram(buf: &[u8]) -> Option<Reading> {
 struct Recorder {
     anchor_ns: Option<u64>, // None until the first reading arrives
     seq: u8,                // next sequence number on channel 0
+    probe_seq: u8,          // next sequence number on the probe channel (milestone 8)
 }
 
 impl Recorder {
     fn new() -> Recorder {
-        Recorder { anchor_ns: None, seq: 1 } // channel 0 used seq 0 for TMATS
+        Recorder { anchor_ns: None, seq: 1, probe_seq: 0 } // channel 0 used seq 0 for TMATS
     }
 
     /// The bytes to write for one reading. The first reading also brings the
@@ -386,6 +396,52 @@ impl Recorder {
     }
 }
 
+// ======================= Milestone 8 =======================
+// Session plan: SESSION-milestone8.md
+
+/// A 16-byte probe datagram from stream_probe.py: u32 position, u64 t_ns, f32 score.
+fn parse_probe_datagram(buf: &[u8]) -> Option<ProbeReading> {
+    // YOUR PART 23: parse_datagram's sibling, with a different layout.
+    // 1. if buf.len() != PROBE_BYTES, return None
+    // 2. pos = bytes 0..4 (u32), t_ns = bytes 4..12 (u64), score = bytes 12..16 (f32)
+    // 3. return Some(ProbeReading { pos, t_ns, score })
+    //
+    // Done when: cargo test --bin ch10write chan2_datagram
+    todo!("parse_probe_datagram")
+}
+
+/// One probe reading -> one user-defined (F0) packet on PROBE_CHANNEL.
+/// Body: CSDW (4 bytes, all zero), u32 position, f32 score.
+fn build_probe_packet(p: &ProbeReading, seq: u8, rtc: u64) -> Vec<u8> {
+    // YOUR PART 24: build_confidence_packet's little sibling.
+    // 1. data_len = 4 (CSDW) + 8 (position + score) = 12
+    //    packet_len = 24 + 12 = 36, already a multiple of 4
+    // 2. a Header: channel PROBE_CHANNEL, data_type TYPE_USER_DEFINED, flags 0,
+    //    version DATA_TYPE_VERSION, plus the seq and rtc you were given
+    // 3. header, csdw (0u32), p.pos, p.score, all .to_le_bytes(); resize; return
+    //
+    // Done when: cargo test --bin ch10write chan2_packet
+    todo!("build_probe_packet")
+}
+
+impl Recorder {
+    /// The bytes to write for one probe reading. The probe reads the whole prompt
+    /// before the model writes its first token, so a probe reading can start the recording.
+    fn probe_packets_for(&mut self, p: &ProbeReading) -> Vec<u8> {
+        // YOUR PART 25: packets_for, but for the probe channel.
+        // 1. let mut out = Vec::new();
+        // 2. if self.anchor_ns.is_none(), start the recording exactly like packets_for:
+        //    anchor = p.t_ns rounded down to a whole second, then TMATS and the time packet
+        // 3. rtc = rtc_from_ns(p.t_ns, anchor)
+        // 4. append build_probe_packet(p, self.probe_seq, rtc), then
+        //    self.probe_seq = self.probe_seq.wrapping_add(1)   (channel 2 counts on its own)
+        // 5. return out
+        //
+        // Done when: cargo test --bin ch10write chan2_recorder
+        todo!("probe_packets_for")
+    }
+}
+
 fn print_anchor(anchor_ns: u64) {
     let a = utc_parts(anchor_ns);
     eprintln!("time anchor: {} day {} {:02}:{:02}:{:02} UTC", a.year, a.doy, a.hour, a.min, a.sec);
@@ -410,6 +466,7 @@ fn record(sock: &UdpSocket, out: &str) -> usize {
     let mut buf = [0u8; 64];
     let mut expected: u32 = 0;
     let mut count = 0;
+    let mut probes = 0;
 
     loop {
         // Pre-filled: wait for the next datagram. None means 5 s of silence.
@@ -420,6 +477,19 @@ fn record(sock: &UdpSocket, out: &str) -> usize {
         if n == 0 {
             break; // an empty datagram means the sender finished the run
         }
+
+        // YOUR PART 26 (milestone 8): a 16-byte datagram is a probe reading.
+        // 1. if n == PROBE_BYTES {
+        //        if let Some(p) = parse_probe_datagram(&buf[..n]) {
+        //            let first = rec.anchor_ns.is_none();   (is this the very first datagram?)
+        //            file.write_all(&rec.probe_packets_for(&p)).expect("write failed");
+        //            if first: print_anchor(...) and start the 5 s silence timer, like below
+        //            probes += 1;
+        //        }
+        //        continue;   <- don't fall through to the confidence code
+        //    }
+        //
+        // Done when: cargo test --bin ch10write chan2_udp
 
         // YOUR PART 11: handle one datagram.
         // 1. let Some(r) = parse_datagram(&buf[..n]) else { warn and continue };
@@ -451,6 +521,9 @@ fn record(sock: &UdpSocket, out: &str) -> usize {
         //    count += 1;
         //
         // Done when: cargo test --bin ch10write udp_
+    }
+    if probes > 0 {
+        eprintln!("{probes} probe readings on channel {PROBE_CHANNEL}");
     }
     count
 }
@@ -737,5 +810,81 @@ mod tests {
         assert_eq!(receiver.join().unwrap(), 3);
         let bytes = fs::read(&out).unwrap();
         assert_eq!(bytes.len(), build_tmats_packet(TMATS, 0, 0).len() + 36 + 3 * 40);
+    }
+
+    // ---------------- Milestone 8: the probe channel ----------------
+
+    fn probe_datagram(pos: u32, t_ns: u64, score: f32) -> Vec<u8> {
+        let mut d = Vec::new();
+        d.extend_from_slice(&pos.to_le_bytes());
+        d.extend_from_slice(&t_ns.to_le_bytes());
+        d.extend_from_slice(&score.to_le_bytes());
+        d
+    }
+
+    #[test]
+    fn chan2_datagram_parses() {
+        let p = parse_probe_datagram(&probe_datagram(41, 1795155421998010048, 0.93)).unwrap();
+        assert_eq!((p.pos, p.t_ns, p.score), (41, 1795155421998010048, 0.93));
+        assert!(parse_probe_datagram(&[0u8; 20]).is_none()); // that's a confidence datagram
+        assert!(parse_probe_datagram(&[0u8; 15]).is_none());
+    }
+
+    #[test]
+    fn chan2_packet_layout() {
+        let p = ProbeReading { pos: 41, t_ns: 0, score: 0.93 };
+        let pk = build_probe_packet(&p, 5, 9_980_100);
+        assert_eq!(pk.len(), 36);
+        assert_eq!(u16::from_le_bytes([pk[2], pk[3]]), PROBE_CHANNEL);
+        assert_eq!(u32::from_le_bytes([pk[4], pk[5], pk[6], pk[7]]), 36);
+        assert_eq!(u32::from_le_bytes([pk[8], pk[9], pk[10], pk[11]]), 12);
+        assert_eq!((pk[13], pk[15]), (5, TYPE_USER_DEFINED));
+        assert_eq!(rtc_of(&pk), 9_980_100);
+        assert_eq!(header_checksum(&pk[..24]), u16::from_le_bytes([pk[22], pk[23]]));
+        assert_eq!(u32::from_le_bytes([pk[24], pk[25], pk[26], pk[27]]), 0);
+        assert_eq!(u32::from_le_bytes([pk[28], pk[29], pk[30], pk[31]]), 41);
+        assert_eq!(f32::from_le_bytes([pk[32], pk[33], pk[34], pk[35]]), 0.93);
+    }
+
+    #[test]
+    fn chan2_recorder_probe_can_come_first() {
+        let mut rec = Recorder::new();
+        let out = rec.probe_packets_for(&ProbeReading { pos: 0, t_ns: 1795155421998010048, score: 0.1 });
+        let tmats_len = build_tmats_packet(TMATS, 0, 0).len();
+        assert_eq!(out.len(), tmats_len + 36 + 36); // TMATS + time + one probe packet
+        assert_eq!(rtc_of(&out[tmats_len..]), 0); // time packet at the anchor
+        let probe = &out[tmats_len + 36..];
+        assert_eq!((u16::from_le_bytes([probe[2], probe[3]]), probe[13]), (PROBE_CHANNEL, 0));
+        assert_eq!(rtc_of(probe), 9_980_100);
+
+        // the next probe is just one packet, and confidence numbering is untouched
+        let p2 = rec.probe_packets_for(&ProbeReading { pos: 1, t_ns: 1795155421998010048, score: 0.2 });
+        assert_eq!((p2.len(), p2[13]), (36, 1));
+        let c = rec.packets_for(&Reading { index: 0, t_ns: 1795155422057528658, entropy: 0.5, top_prob: 0.9 });
+        assert_eq!((c.len(), c[13]), (40, 1));
+    }
+
+    #[test]
+    fn chan2_udp_records_both_channels() {
+        let rx = UdpSocket::bind("127.0.0.1:0").unwrap();
+        let addr = rx.local_addr().unwrap();
+        let out = std::env::temp_dir().join("ch10write_chan2_test.c10");
+        let out_path = out.to_str().unwrap().to_string();
+        let receiver = std::thread::spawn(move || record(&rx, &out_path));
+
+        let tx = UdpSocket::bind("127.0.0.1:0").unwrap();
+        let t0 = 1795155421998010048u64;
+        for pos in 0..3 {
+            tx.send_to(&probe_datagram(pos, t0, 0.2), addr).unwrap(); // the prompt, all at once
+        }
+        tx.send_to(&datagram(0, t0 + 50_000_000, 1.0, 0.5), addr).unwrap();
+        tx.send_to(&probe_datagram(3, t0 + 70_000_000, 0.9), addr).unwrap();
+        tx.send_to(&datagram(1, t0 + 70_000_000, 1.0, 0.5), addr).unwrap();
+        tx.send_to(&[], addr).unwrap();
+
+        assert_eq!(receiver.join().unwrap(), 2); // record() still counts confidence readings
+        let bytes = fs::read(&out).unwrap();
+        let tmats_len = build_tmats_packet(TMATS, 0, 0).len();
+        assert_eq!(bytes.len(), tmats_len + 36 + 4 * 36 + 2 * 40);
     }
 }

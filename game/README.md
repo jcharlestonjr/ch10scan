@@ -37,10 +37,13 @@ and try the same address again. If VS Code offers "Open in Browser" for port 864
 
 ## What a scan does
 
-It runs `cargo test --bin ch10write` and `cargo build`. Once Live Wire Pass is ready, it also
-replays `confidence_sample.csv` over UDP into `--udp` mode in a temp folder and compares the result
-with CSV mode. It runs ch10scan on `target/model.c10` (if you've recorded one) in a temp folder,
-and reads `git log`. It never changes your repo, and it never runs anything the page sends it.
+It runs `cargo test --bins` and `cargo build --bins`. As each zone's tests pass, it runs that zone's
+final-blow check in a temp folder: a byte-perfect UDP replay (Live Wire Pass), `ch10tail --once` on
+the sample recording (Ground Station Ridge), a `ch10cal` report on synthetic data (Calibration Caverns),
+`probetrain` on synthetic features (Probe Depths), and a PCM round trip checked by an independent
+decoder (The PCM Citadel). It also checks your field files: `target/model.c10`, `target/station.c10`,
+`calib_results.csv`, `probe.bin`, `target/probe_run.c10` and `target/model_pcm.c10`. It reads
+`git log`. It never changes your repo, and it never runs anything the page sends it.
 
 Level-up and achievement pop-ups compare against your last visit, which your browser remembers.
 
